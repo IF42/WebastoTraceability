@@ -1,0 +1,20 @@
+.login_form
+{
+    background: #AAA;
+}
+
+
+.login_page
+{
+    background:#CCC;
+    background-image:url("background_1.png");
+    background-repeat: no-repeat;
+    background-position: center;
+    margin:0px;
+    padding:0px;
+    width: 800;
+    height:600;
+}
+
+
+
