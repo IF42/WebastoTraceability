@@ -6,10 +6,6 @@
 #include <snap7.h>
 #include <stdint.h>
 
-#define PLC1_DATE_TIME_SYNC_DB_INDEX 20
-#define PLC2_DATE_TIME_SYNC_DB_INDEX 9
-
-
 PLC_Thread *
 plc_thread2_new(
     Model * model

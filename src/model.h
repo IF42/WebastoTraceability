@@ -6,6 +6,8 @@
 #include <log.h>
 #include <array.h>
 #include <stdint.h>
+#include <pthread.h>
+
 
 typedef struct
 {
@@ -28,6 +30,9 @@ typedef struct
     Log * log;
     
     char logged_user[64];
+
+    pthread_mutex_t mutex;
+
 }Model;
 
 #define Model(...)(Model){__VA_LIST__}
@@ -91,14 +96,22 @@ model_write_environment_data(
 
 
 bool
-model_update_frame_rewokrd(
+model_update_pa30r_frame_rework(
     Model * self
     , char * table
     , char * frame_code
     , uint8_t rework);
 
 
+bool
+model_update_pa60r_frame_rework(
+    Model * self
+    , char * table
+    , char * frame_code
+    , uint8_t rework);
+
 void
 model_delete(Model * self);
+
 
 #endif

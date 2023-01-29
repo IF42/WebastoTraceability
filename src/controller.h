@@ -11,10 +11,6 @@ controller_init(Model * model);
 
 
 void
-controller_run(Controller * self);
-
-
-void
 controller_delete(Controller * self);
 
 

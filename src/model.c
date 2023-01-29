@@ -1,12 +1,10 @@
 #include "model.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
 #include <stdlib.h>
 
-
-//TODO: add mutex
 
 Model *
 model_init(void)
@@ -26,6 +24,8 @@ model_init(void)
     {
         log_error(self->log, "SQLITE open error: %d", rc);
         model_delete(self);
+
+        pthread_mutex_init(&self->mutex, NULL);
 
         return NULL;
     }
@@ -54,8 +54,11 @@ array_string_delete(void* self)
 ArrayString *
 model_get_table_list(Model * self)
 {
-    const char * sql = "SELECT name FROM sqlite_schema WHERE type ='table' AND name NOT LIKE 'sqlite_%';";
+    const char * sql = 
+        "SELECT name FROM sqlite_schema WHERE type ='table' AND name NOT LIKE 'sqlite_%';";
     sqlite3_stmt *res;
+
+    pthread_mutex_lock(&self->mutex);
 
     int rc = sqlite3_prepare_v2(self->db, sql, -1, &res, 0);
     
@@ -65,7 +68,8 @@ model_get_table_list(Model * self)
         return NULL;
     }
      
-    ArrayString * table_list = (ArrayString*) array_new(sizeof(char*), 0, array_string_delete);
+    ArrayString * table_list = 
+        (ArrayString*) array_new(sizeof(char*), 0, array_string_delete);
 
     for(size_t i = 0; sqlite3_step(res) == SQLITE_ROW; i++)
     {
@@ -74,6 +78,7 @@ model_get_table_list(Model * self)
     }
 
     sqlite3_finalize(res);
+    pthread_mutex_unlock(&self->mutex);
 
     return table_list;
 }
@@ -90,8 +95,6 @@ table_content_delete(void * self)
         free(self);
     }
 }
-
-
 
 
 TableContent *
@@ -111,6 +114,8 @@ model_get_table_content(
 
     sqlite3_stmt *res;
 
+    pthread_mutex_lock(&self->mutex);
+
     int rc = sqlite3_prepare_v2(self->db, sql, -1, &res, 0);
     
     if (rc != SQLITE_OK)
@@ -119,7 +124,8 @@ model_get_table_content(
         return NULL;
     }
 
-    TableContent * db_table_content =  (TableContent*) array_new(sizeof(ArrayString*), 0, table_content_delete);
+    TableContent * db_table_content = 
+        (TableContent*) array_new(sizeof(ArrayString*), 0, table_content_delete);
 
     for (size_t i = 0; sqlite3_step(res) == SQLITE_ROW; i++)
     {
@@ -135,6 +141,7 @@ model_get_table_content(
     } 
     
     sqlite3_finalize(res);
+    pthread_mutex_unlock(&self->mutex);
 
     return db_table_content;
 }
@@ -150,6 +157,8 @@ model_get_table_columns(
 
     sqlite3_stmt *res;
 
+    pthread_mutex_lock(&self->mutex);
+
     int rc = sqlite3_prepare_v2(self->db, sql, -1, &res, 0);
     
     if (rc != SQLITE_OK)
@@ -158,7 +167,8 @@ model_get_table_columns(
         return NULL;
     }
         
-    ArrayString * columns = (ArrayString*) array_new(sizeof(char*), 0, array_string_delete);
+    ArrayString * columns = 
+        (ArrayString*) array_new(sizeof(char*), 0, array_string_delete);
 
     for(size_t i = 0; sqlite3_step(res) == SQLITE_ROW; i++)
     {
@@ -167,6 +177,7 @@ model_get_table_columns(
     } 
 
     sqlite3_finalize(res);
+    pthread_mutex_unlock(&self->mutex);
 
     return columns;
 }
@@ -183,6 +194,8 @@ model_check_cover_exists(
     bool cover_exists = false;
     sqlite3_stmt *res;
 
+    pthread_mutex_lock(&self->mutex);
+
     int rc = sqlite3_prepare_v2(self->db, query, -1, &res, NULL);
     
     if (rc == SQLITE_OK)
@@ -192,6 +205,7 @@ model_check_cover_exists(
     }
 
     sqlite3_finalize(res);
+    pthread_mutex_unlock(&self->mutex);
 
     return cover_exists;
 }
@@ -214,7 +228,8 @@ model_write_new_cover(
 
     sprintf(
         query
-        , "INSERT INTO covers (cover_code, orientation, PA10B_date_time, PA10B_activator_left, PA10B_activator_right, spare) "
+        , "INSERT INTO covers "
+        "(cover_code, orientation, PA10B_date_time, PA10B_activator_left, PA10B_activator_right, spare) "
         "VALUES('%s', '%s', '%02d.%02d.%d*%02d:%02d', '%s', '%s', '%s');"
         , cover_code
         , orientation ? "left" : "right"
@@ -223,8 +238,12 @@ model_write_new_cover(
         , bottle2_batch
         , spare ? "YES" : "NO");
 
+    pthread_mutex_lock(&self->mutex);
+
     int rc = sqlite3_exec(self->db, query, 0, 0, NULL);
     
+    pthread_mutex_unlock(&self->mutex);
+
     if (rc == SQLITE_OK)
         result = true;
 
@@ -249,7 +268,8 @@ model_write_new_frame(
 
     sprintf(
         query
-        , "INSERT INTO %s (frame_code, frame_order, PA30R_date_time, PA30R_Primer_207_SIKA, PA30R_Remover_208_SIKA, PA30R_rework)"
+        , "INSERT INTO %s "
+        "(frame_code, frame_order, PA30R_date_time, PA30R_Primer_207_SIKA, PA30R_Remover_208_SIKA, PA30R_rework)"
         " VALUES ('%s', '%d', '%02d.%02d.%d*%02d:%02d', '%s', '%s', '0')';" 
         , table
         , frame_code
@@ -258,7 +278,11 @@ model_write_new_frame(
         , primer_207_sika
         , remover_208_sika);
 
+    pthread_mutex_lock(&self->mutex);
+
     int rc = sqlite3_exec(self->db, query, 0, 0, NULL);
+
+    pthread_mutex_unlock(&self->mutex);
     
     if (rc == SQLITE_OK)
         result = true;
@@ -281,13 +305,18 @@ model_write_environment_data(
     char query[512];
     sprintf(
         query
-        , "INSERT INTO enviroment VALUES('%02d.%02d.%d*%02d:%02d:%02d', '%02.2f', '%02.2f');"
+        , "INSERT INTO enviroment "
+            "VALUES('%02d.%02d.%d*%02d:%02d:%02d', '%02.2f', '%02.2f');"
         , tm.tm_mday, tm.tm_mon + 1, tm.tm_year + 1900, tm.tm_hour, tm.tm_min, tm.tm_sec
         , temperature
         , humidity);
 
+    pthread_mutex_lock(&self->mutex);
+
     int rc = sqlite3_exec(self->db, query, 0, 0, NULL);
     
+    pthread_mutex_unlock(&self->mutex);
+
     if (rc == SQLITE_OK)
         result = true;
 
@@ -295,10 +324,8 @@ model_write_environment_data(
 }
 
 
-
-//TODO: update also pa30r_produce_date_time
 bool
-model_update_frame_rewokrd(
+model_update_pa30r_frame_rework(
     Model * self
     , char * table
     , char * frame_code
@@ -306,16 +333,60 @@ model_update_frame_rewokrd(
 {
     bool result = false;
     char query[512];
+    time_t t = time(NULL);
+    struct tm tm = *localtime(&t);
 
     sprintf(
         query
-        , "UPDATE %s SET PA30R_rework='%d' WHERE frame_code='%s';"
+        , "UPDATE %s SET "
+            "PA30R_rework='%d', PA30R_date_time='%02d.%02d.%d*%02d:%02d' "
+            "WHERE frame_code='%s';"
         , table
         , rework
+        , tm.tm_mday, tm.tm_mon + 1, tm.tm_year + 1900, tm.tm_hour, tm.tm_min
         , frame_code);
     
+    pthread_mutex_lock(&self->mutex);
+
     int rc = sqlite3_exec(self->db, query, 0, 0, NULL);
     
+    pthread_mutex_unlock(&self->mutex);
+
+    if (rc == SQLITE_OK)
+        result = true;
+
+    return result;   
+}
+
+
+bool
+model_update_pa60r_frame_rework(
+    Model * self
+    , char * table
+    , char * frame_code
+    , uint8_t rework)
+{
+    bool result = false;
+    char query[512];
+    time_t t = time(NULL);
+    struct tm tm = *localtime(&t);
+
+    sprintf(
+        query
+        , "UPDATE %s SET "
+            "PA60R_rework='%d', PA60R_date_time='%02d.%02d.%d*%02d:%02d' "
+            "WHERE frame_code='%s';"
+        , table
+        , rework
+        , tm.tm_mday, tm.tm_mon + 1, tm.tm_year + 1900, tm.tm_hour, tm.tm_min
+        , frame_code);
+    
+    pthread_mutex_lock(&self->mutex);
+
+    int rc = sqlite3_exec(self->db, query, 0, 0, NULL);
+    
+    pthread_mutex_unlock(&self->mutex);
+
     if (rc == SQLITE_OK)
         result = true;
 
@@ -330,6 +401,8 @@ model_delete(Model * self)
     {
         sqlite3_close(self->db);
         log_delete(self->log);
+
+        pthread_mutex_destroy(&self->mutex);
         free(self);
     }
 }

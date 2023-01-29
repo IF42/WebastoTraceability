@@ -1,8 +1,8 @@
 #include "plc1_thread6.h"
+#include "plc_thread_config.h"
 
 #include <stdlib.h>
 
-#define DB_INDEX 30
 
 
 typedef enum
@@ -26,7 +26,6 @@ typedef struct
 typedef struct
 {
     PLC_Thread super;
-
     ThreadState step;   
 }PLC1_Thread6;
 
@@ -61,22 +60,28 @@ step_wait(PLC1_Thread6 * self)
     Rework rework;
     Result result = {0};
 
-    if(Cli_DBRead(self->super.client, DB_INDEX, 2, sizeof(Execute), &execute) != 0
-        || Cli_DBWrite(self->super.client, DB_INDEX, 0, sizeof(Result), &result) != 0)
+    if(Cli_DBRead(self->super.client, PLC1_THREAD6_DB_INDEX, 2, sizeof(Execute), &execute) != 0
+        || Cli_DBWrite(self->super.client, PLC1_THREAD6_DB_INDEX, 0, sizeof(Result), &result) != 0)
     {
         return ThreadResult(.is_error = true);
     }
 
     if(execute.execute == false) return ThreadResult(.step = WAIT);
 
-    if(Cli_DBRead(self->super.client, DB_INDEX, 3, sizeof(Rework), &rework) != 0)
+    if(Cli_DBRead(self->super.client, PLC1_THREAD6_DB_INDEX, 3, sizeof(Rework), &rework) != 0)
         return ThreadResult(.is_error = true);
 
     rework.table.array[rework.table.length] = '\0';
     rework.frame_code.array[rework.frame_code.length] = '\0';
 
-    if(model_update_frame_rewokrd(self->super.model, rework.table.array, rework.frame_code.array, rework.rework) == true)
+    if(model_update_pa30r_frame_rework(
+        self->super.model
+        , rework.table.array
+        , rework.frame_code.array
+        , rework.rework) == true)
+    {
         return ThreadResult(.step = FINISH);
+    }
     else
         return ThreadResult(.step = ERROR); 
 }
@@ -88,8 +93,8 @@ step_finish(PLC1_Thread6 * self)
     Result result = {.DONE = true};
     Execute execute;
 
-    if(Cli_DBRead(self->super.client, DB_INDEX, 2, sizeof(Execute), &execute) != 0
-         || Cli_DBWrite(self->super.client, DB_INDEX, 0, sizeof(Result), &result) != 0)
+    if(Cli_DBRead(self->super.client, PLC1_THREAD6_DB_INDEX, 2, sizeof(Execute), &execute) != 0
+         || Cli_DBWrite(self->super.client, PLC1_THREAD6_DB_INDEX, 0, sizeof(Result), &result) != 0)
     {
         return ThreadResult(.is_error = true);
     }
@@ -106,8 +111,8 @@ step_error(PLC1_Thread6 * self)
     Result result = {.ERROR = true};
     Execute execute;
 
-    if(Cli_DBRead(self->super.client, DB_INDEX, 2, sizeof(Execute), &execute) != 0
-         || Cli_DBWrite(self->super.client, DB_INDEX, 0, sizeof(Result), &result) != 0)
+    if(Cli_DBRead(self->super.client, PLC1_THREAD6_DB_INDEX, 2, sizeof(Execute), &execute) != 0
+         || Cli_DBWrite(self->super.client, PLC1_THREAD6_DB_INDEX, 0, sizeof(Result), &result) != 0)
     {
         return ThreadResult(.is_error = true);
     }

@@ -1,9 +1,9 @@
 #include "plc1_thread7.h"
+#include "plc_thread_config.h"
 
 #include <stdlib.h>
 
 
-#define DB_INDEX 33
 
 
 typedef enum
@@ -64,8 +64,8 @@ step_wait(PLC1_Thread7 * self)
     Frame frame;
     Result result = {0};
 
-    if(Cli_DBRead(self->super.client, DB_INDEX, 2, sizeof(Execute), &execute) != 0
-        || Cli_DBWrite(self->super.client, DB_INDEX, 0, sizeof(Result), &result) != 0)
+    if(Cli_DBRead(self->super.client, PLC1_THREAD7_DB_INDEX, 2, sizeof(Execute), &execute) != 0
+        || Cli_DBWrite(self->super.client, PLC1_THREAD7_DB_INDEX, 0, sizeof(Result), &result) != 0)
     {
         return ThreadResult(.is_error = true);
     }
@@ -73,7 +73,7 @@ step_wait(PLC1_Thread7 * self)
     if(execute.execute == false) 
         return ThreadResult(.step = WAIT);
 
-    if(Cli_DBRead(self->super.client, DB_INDEX, 4, sizeof(Frame), &frame) != 0)
+    if(Cli_DBRead(self->super.client, PLC1_THREAD7_DB_INDEX, 4, sizeof(Frame), &frame) != 0)
         return ThreadResult(.is_error = true);
 
     frame.table.array[frame.table.length] = '\0';
@@ -102,8 +102,8 @@ step_finish(PLC1_Thread7 * self)
     Execute execute;
     Result result = (Result) {.DONE = true};
 
-    if(Cli_DBWrite(self->super.client, DB_INDEX, 0, sizeof(Result), &result) != 0
-        || Cli_DBRead(self->super.client, DB_INDEX, 2, sizeof(Execute), &execute) != 0)
+    if(Cli_DBWrite(self->super.client, PLC1_THREAD7_DB_INDEX, 0, sizeof(Result), &result) != 0
+        || Cli_DBRead(self->super.client, PLC1_THREAD7_DB_INDEX, 2, sizeof(Execute), &execute) != 0)
     {
         return ThreadResult(.is_error = true);
     }
@@ -121,8 +121,8 @@ step_error(PLC1_Thread7 * self)
     Execute execute;
     Result result = (Result) {.ERROR = true};
 
-    if(Cli_DBWrite(self->super.client, DB_INDEX, 0, sizeof(Result), &result) != 0
-        || Cli_DBRead(self->super.client, DB_INDEX, 2, sizeof(Execute), &execute) != 0)
+    if(Cli_DBWrite(self->super.client, PLC1_THREAD7_DB_INDEX, 0, sizeof(Result), &result) != 0
+        || Cli_DBRead(self->super.client, PLC1_THREAD7_DB_INDEX, 2, sizeof(Execute), &execute) != 0)
     {
         return ThreadResult(.is_error = true);
     }

@@ -1,12 +1,10 @@
 #include "plc1_thread3.h"
+#include "plc_thread_config.h"
 
 #include <time.h>
 #include <stdlib.h>
 #include <log.h>
 #include <endian.h>
-
-
-#define DB_INDEX 6
 
 
 typedef enum
@@ -58,8 +56,8 @@ step_wait(PLC1_Thread3 * self)
     Execute execute;
     PLC_String cover_code;
 
-    if(Cli_DBWrite(self->super.client, DB_INDEX, 0, sizeof(Result), &result) != 0 
-        || Cli_DBRead(self->super.client, DB_INDEX, 2, sizeof(Execute), &execute) != 0)
+    if(Cli_DBWrite(self->super.client, PLC1_THREAD3_DB_INDEX, 0, sizeof(Result), &result) != 0 
+        || Cli_DBRead(self->super.client, PLC1_THREAD3_DB_INDEX, 2, sizeof(Execute), &execute) != 0)
     {
         return ThreadResult(.is_error = true);
     }
@@ -67,7 +65,7 @@ step_wait(PLC1_Thread3 * self)
     if(execute.execute == false)
         return ThreadResult(.step = WAIT);
         
-    if(Cli_DBRead(self->super.client, DB_INDEX, 4, sizeof(PLC_String), &cover_code) != 0)   
+    if(Cli_DBRead(self->super.client, PLC1_THREAD3_DB_INDEX, 4, sizeof(PLC_String), &cover_code) != 0)   
         return ThreadResult(.is_error = true);
 
     cover_code.array[cover_code.length] = '\0';
@@ -91,8 +89,8 @@ step_finish(PLC1_Thread3 * self)
     if(PLC1_THREAD3(self)->step == FINISH_TRUE)
         result.COVER_EXISTS = true;
     
-    if(Cli_DBWrite(self->super.client, DB_INDEX, 0, sizeof(Result), &result) != 0
-        || Cli_DBRead(self->super.client, DB_INDEX, 2, sizeof(Execute), &execute) != 0)
+    if(Cli_DBWrite(self->super.client, PLC1_THREAD3_DB_INDEX, 0, sizeof(Result), &result) != 0
+        || Cli_DBRead(self->super.client, PLC1_THREAD3_DB_INDEX, 2, sizeof(Execute), &execute) != 0)
     {
         return ThreadResult(.is_error = true);
     }
@@ -109,8 +107,8 @@ step_error(PLC1_Thread3 * self)
     Result  result = {.ERROR = true};            
     Execute execute;
 
-    if(Cli_DBWrite(self->super.client, DB_INDEX, 0, sizeof(Result), &result) != 0
-        || Cli_DBRead(self->super.client, DB_INDEX, 2, sizeof(Execute), &execute) != 0)
+    if(Cli_DBWrite(self->super.client, PLC1_THREAD3_DB_INDEX, 0, sizeof(Result), &result) != 0
+        || Cli_DBRead(self->super.client, PLC1_THREAD3_DB_INDEX, 2, sizeof(Execute), &execute) != 0)
     {
         return ThreadResult(.is_error = true);
     }

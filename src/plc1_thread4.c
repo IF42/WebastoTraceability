@@ -1,11 +1,11 @@
 #include "plc1_thread4.h"
+#include "plc_thread_config.h"
 
 #include <time.h>
 #include <stdlib.h>
 #include <log.h>
 #include <endian.h>
 
-#define DB_INDEX 25
 
 
 typedef enum
@@ -69,8 +69,8 @@ step_wait(PLC1_Thread4 * self)
     Execute execute;
     Cover cover;
 
-    if(Cli_DBWrite(self->super.client, DB_INDEX, 0, sizeof(Result), &result) != 0
-        || Cli_DBRead(self->super.client, DB_INDEX, 2, sizeof(Execute), &execute) != 0)
+    if(Cli_DBWrite(self->super.client, PLC1_THREAD4_DB_INDEX, 0, sizeof(Result), &result) != 0
+        || Cli_DBRead(self->super.client, PLC1_THREAD4_DB_INDEX, 2, sizeof(Execute), &execute) != 0)
     {
         return ThreadResult(.is_error = true);
     }
@@ -78,7 +78,7 @@ step_wait(PLC1_Thread4 * self)
     if(execute.execute == false)
         return ThreadResult(.step = WAIT);
     
-    if(Cli_DBRead(self->super.client, DB_INDEX, 2, sizeof(Cover), &cover) != 0)
+    if(Cli_DBRead(self->super.client, PLC1_THREAD4_DB_INDEX, 2, sizeof(Cover), &cover) != 0)
         return ThreadResult(.is_error = true);
 
     //set terminating zero character
@@ -107,8 +107,8 @@ step_finish(PLC1_Thread4 * self)
     Result result = (Result){.DONE = true};
     Execute execute;
     
-    if(Cli_DBWrite(self->super.client, DB_INDEX, 0, sizeof(Result), &result) != 0
-        || Cli_DBRead(self->super.client, DB_INDEX, 2, sizeof(Execute), &execute) != 0)
+    if(Cli_DBWrite(self->super.client, PLC1_THREAD4_DB_INDEX, 0, sizeof(Result), &result) != 0
+        || Cli_DBRead(self->super.client, PLC1_THREAD4_DB_INDEX, 2, sizeof(Execute), &execute) != 0)
     {
         return ThreadResult(.is_error = true);
     }
@@ -127,8 +127,8 @@ step_error(PLC1_Thread4 * self)
     Result result = (Result){.ERROR = true};
     Execute execute;
     
-    if(Cli_DBWrite(self->super.client, DB_INDEX, 0, sizeof(Result), &result) != 0
-        || Cli_DBRead(self->super.client, DB_INDEX, 2, sizeof(Execute), &execute) != 0)
+    if(Cli_DBWrite(self->super.client, PLC1_THREAD4_DB_INDEX, 0, sizeof(Result), &result) != 0
+        || Cli_DBRead(self->super.client, PLC1_THREAD4_DB_INDEX, 2, sizeof(Execute), &execute) != 0)
     {
         return ThreadResult(.is_error = true);
     }

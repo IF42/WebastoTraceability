@@ -24,11 +24,11 @@ typedef struct
 static bool
 plc_thread1_run(PLC_Thread * self)
 {
+    PING ping;
+
     if(PLC_THREAD1(self)->counter >= 1)
     {
         PLC_THREAD1(self)->counter = 0;
-
-        PING ping;
 
         if(Cli_DBRead(self->client, PLC_THREAD1(self)->db_index, 0, 1, &ping) != 0)
             return false;
@@ -36,14 +36,14 @@ plc_thread1_run(PLC_Thread * self)
         if(ping.ping == false)
         {
             ping.ping = true;
-
+            
             if(Cli_DBWrite(self->client, PLC_THREAD1(self)->db_index, 0, 1, &ping) != 0)
                 return false;
         }
     }
     else
         PLC_THREAD1(self)->counter++;    
-    
+
     return true;
 }
 

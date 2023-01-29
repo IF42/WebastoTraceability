@@ -3,6 +3,7 @@
 
 #include "model.h"
 
+#include <endian.h>
 #include <snap7.h>
 #include <stdbool.h>
 
@@ -15,7 +16,7 @@ typedef struct
 }PLC_String;
 
 
-typedef struct
+struct DTL
 {
     uint16_t year;
     uint8_t month;
@@ -25,7 +26,19 @@ typedef struct
     uint8_t minute;
     uint8_t second;
     uint32_t nanosecond;
-}DTL;
+}__attribute__((packed, aligned(1)));
+
+typedef struct DTL DTL;
+
+
+#define DTL_DEFAULT (DTL)                        \
+    {                                            \
+        .year = swap_endian((uint16_t)1970)      \
+        , .month = 1                             \
+        , .day = 1                               \
+        , .weekday = 5                           \
+    }
+
 
 typedef struct PLC_Thread PLC_Thread;
 
@@ -54,3 +67,9 @@ plc_thread_delete(PLC_Thread * self);
 
 
 #endif
+
+
+
+
+
+

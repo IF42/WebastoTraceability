@@ -7,11 +7,6 @@
 #include <stdint.h>
 
 
-#define PLC1_PING_DB_INDEX 19
-#define PLC2_PING_DB_INDEX 8
-
-
-
 PLC_Thread *
 plc_thread1_new(
     Model * model

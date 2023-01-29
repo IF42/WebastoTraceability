@@ -1,4 +1,5 @@
 #include "plc1_thread9.h"
+#include "plc_thread_config.h"
 
 #include <stdlib.h>
 
@@ -6,8 +7,7 @@
 typedef enum
 {
     WAIT
-    , FINISH_TRUE
-    , FINISH_FALSE
+    , FINISH
     , ERROR
 }ThreadState;
 
@@ -30,24 +30,101 @@ typedef struct
 #define PLC1_THREAD9(T)((PLC1_Thread9*)T)
 
 
+typedef struct
+{
+    uint8_t execute:1;
+}Execute;
+
+
+typedef struct
+{
+    uint8_t DONE:1;
+    uint8_t ERROR:1;
+}Result;
+
+
+typedef struct
+{
+    uint8_t rework;
+    PLC_String table;
+    PLC_String frame_code;
+}Rework;
+
+
 static ThreadResult
 step_wait(PLC1_Thread9 * self)
 {
+    Execute execute;
+    Rework rework;
+    Result result = {0};
+
     
+    if(Cli_DBRead(self->super.client, PLC1_THREAD9_DB_INDEX, 2, sizeof(Execute), &execute) != 0
+        || Cli_DBWrite(self->super.client, PLC1_THREAD9_DB_INDEX, 0, sizeof(Result), &result) != 0)
+    {
+        return ThreadResult(.is_error = true);
+    }
+    
+    if(execute.execute == false) 
+        return ThreadResult(.step = WAIT);
+
+    printf("execute: %s\n", execute.execute ? "True" : "False");
+
+    if(Cli_DBRead(self->super.client, PLC1_THREAD9_DB_INDEX, 3, sizeof(Rework), &rework) != 0)
+        return ThreadResult(.is_error = true);
+
+    rework.table.array[rework.table.length] = '\0';
+    rework.frame_code.array[rework.frame_code.length] = '\0';
+
+    if(model_update_pa60r_frame_rework(
+        self->super.model
+        , rework.table.array
+        , rework.frame_code.array
+        , rework.rework) == true)
+    {
+        return ThreadResult(.step = FINISH);
+    }
+    else
+        return ThreadResult(.step = ERROR); 
+
 }
 
 
 static ThreadResult
 step_finish(PLC1_Thread9 * self)
 {
+    Result result = {.DONE = true};
+    Execute execute;
 
+    if(Cli_DBRead(self->super.client, PLC1_THREAD9_DB_INDEX, 2, sizeof(Execute), &execute) != 0
+         || Cli_DBWrite(self->super.client, PLC1_THREAD9_DB_INDEX, 0, sizeof(Result), &result) != 0)
+    {
+        return ThreadResult(.is_error = true);
+    }
+
+    if(execute.execute == false)
+        return ThreadResult(.step = WAIT);
+    else
+        return ThreadResult(.step = FINISH);
 }
 
 
 static ThreadResult
 step_error(PLC1_Thread9 * self)
 {
+    Result result = {.ERROR = true};
+    Execute execute;
 
+    if(Cli_DBRead(self->super.client, PLC1_THREAD9_DB_INDEX, 2, sizeof(Execute), &execute) != 0
+         || Cli_DBWrite(self->super.client, PLC1_THREAD9_DB_INDEX, 0, sizeof(Result), &result) != 0)
+    {
+        return ThreadResult(.is_error = true);
+    }
+
+    if(execute.execute == false)
+        return ThreadResult(.step = WAIT);
+    else
+        return ThreadResult(.step = ERROR);
 }
 
 
@@ -64,8 +141,7 @@ thread_run(PLC_Thread * self)
             else
                 return false;
             break;
-        case FINISH_TRUE:
-        case FINISH_FALSE:
+        case FINISH:
             if((result = step_finish(PLC1_THREAD9(self))).is_error == false)
                 PLC1_THREAD9(self)->step = result.step;
             else

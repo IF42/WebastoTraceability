@@ -82,7 +82,7 @@ thread_run(PLC_Thread * self)
             PLC1_THREAD10(self)->step = WAIT;
     }
 
-    return false;
+    return true;
 }
 
 

@@ -17,7 +17,6 @@ typedef struct
 
 #define ARRAY(T) ((Array *) T)
 
-
 #define Array(...)(Array){__VA_ARGS__}
 
 

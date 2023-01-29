@@ -9,7 +9,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define LOGOUT_INTERVAL 60*10
+
+#define LOGOUT_INTERVAL 60*10 //seconds
+
 
 typedef struct
 {
@@ -17,8 +19,8 @@ typedef struct
     Model * model;
     Controller * controller;
     int cyclic_interrupt_id;
-    int controller_interrupt_id;
 }View;
+
 
 #define View(...)(View){__VA_ARGS__}
 
@@ -274,6 +276,8 @@ view_btn_filter_click_callback(GtkWidget * widget, View * view)
             view->model
             , gtk_combo_box_text_get_active_text(GTK_COMBO_BOX_TEXT(view->ui.combo_table)));
 
+    view_clear_table_list(view->ui.db_table_view);
+
     for(size_t i = 0; i < column_list->super.size; i++)
     {
         gtk_tree_view_append_column(
@@ -317,10 +321,17 @@ view_cyclic_interupt_callback(gpointer param)
             GTK_PROGRESS_BAR (self->ui.progress_timeout_logout)
             , ((float)self->model->logout_timer)/((float)LOGOUT_INTERVAL));
 
+    #ifdef __linux__
+        sprintf(
+            str_timeout
+            , "%02ld:%02ld"
+            , self->model->logout_timer / 60, self->model->logout_timer % 60);
+    #elif defined(WIN32) || defined(WIN64)
         sprintf(
             str_timeout
             , "%02lld:%02lld"
             , self->model->logout_timer / 60, self->model->logout_timer % 60);
+    #endif 
 
         gtk_progress_bar_set_text(
             GTK_PROGRESS_BAR(self->ui.progress_timeout_logout)
@@ -434,14 +445,6 @@ view_set_table_list(View * self)
 }
 
 
-static int
-view_controller_interupt_callback(gpointer param)
-{
-    controller_run(((View*)param)->controller);
-    return true;
-}
-
-
 void
 view(GtkApplication * app)
 {
@@ -453,10 +456,9 @@ view(GtkApplication * app)
         && model != NULL
         && controller != NULL)
     {
-        int cyclic_interrupt_id     = g_timeout_add(1000, view_cyclic_interupt_callback, &v);
-        int controller_interrupt_id = g_timeout_add(500, view_controller_interupt_callback, &v);
+        int cyclic_interrupt_id = g_timeout_add(1000, view_cyclic_interupt_callback, &v);
 
-        v = View(t.value, model, controller, cyclic_interrupt_id, controller_interrupt_id);
+        v = View(t.value, model, controller, cyclic_interrupt_id);
         gtk_window_set_application(GTK_WINDOW(v.ui.window), app);
 
         gtk_window_maximize(GTK_WINDOW(v.ui.window));
