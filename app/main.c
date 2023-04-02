@@ -12,16 +12,23 @@
 int
 main(int argc, char ** argv)
 {
+    GtkApplication * app;
+
     if(argc > 1 && strcmp(argv[1], "--version") == 0)
     {
         //version_show(stdout, version);
         return EXIT_SUCCESS;
     }
 
-    GtkApplication * app = 
-        gtk_application_new(
-            "gtk.example.webasto"
-            , G_APPLICATION_FLAGS_NONE);//G_APPLICATION_DEFAULT_FLAGS);
+    #if defined(_WIN64) || defined(_WIN32)
+    app = gtk_application_new(
+                "gtk.example.webasto"
+                , G_APPLICATION_DEFAULT_FLAGS);
+    #else
+     app = gtk_application_new(
+                "gtk.example.webasto"
+                , G_APPLICATION_FLAGS_NONE);
+    #endif
 
     g_signal_connect(
         G_OBJECT(app)

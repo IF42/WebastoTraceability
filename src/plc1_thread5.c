@@ -68,11 +68,11 @@ step_wait(PLC1_Thread5 * self)
     if(Cli_DBRead(self->super.client, PLC1_THREAD5_DB_INDEX, 2, sizeof(Execute), &execute) != 0
         || Cli_DBWrite(self->super.client, PLC1_THREAD5_DB_INDEX, 0, sizeof(Result), &result) != 0) 
     {
-        printf("error here\n");
         return ThreadResult(.is_error = true);
     }
     
-    if(execute.execute == false) return ThreadResult(.step = WAIT);
+    if(execute.execute == false) 
+        return ThreadResult(.step = WAIT);
 
     if(Cli_DBRead(self->super.client, PLC1_THREAD5_DB_INDEX, 4, sizeof(Frame), &frame) != 0)
         return ThreadResult(.is_error = true);

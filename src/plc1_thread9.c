@@ -68,15 +68,13 @@ step_wait(PLC1_Thread9 * self)
     if(execute.execute == false) 
         return ThreadResult(.step = WAIT);
 
-    printf("execute: %s\n", execute.execute ? "True" : "False");
-
     if(Cli_DBRead(self->super.client, PLC1_THREAD9_DB_INDEX, 3, sizeof(Rework), &rework) != 0)
         return ThreadResult(.is_error = true);
 
-    rework.table.array[rework.table.length] = '\0';
+    rework.table.array[rework.table.length]           = '\0';
     rework.frame_code.array[rework.frame_code.length] = '\0';
 
-    if(model_update_pa60r_frame_rework(
+    if(model_pa60r_update_frame_rework(
         self->super.model
         , rework.table.array
         , rework.frame_code.array

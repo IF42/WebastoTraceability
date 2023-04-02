@@ -35,7 +35,8 @@ MODULES += plc2_thread4.o
 MODULES += plc2_thread5.o
 MODULES += plc2_thread6.o
 MODULES += plc2_thread7.o
-
+MODULES += plc2_thread8.o
+MODULES += plc2_thread9.o
 
 MODULES += model.o
 MODULES += login.o
@@ -49,7 +50,7 @@ TEST += test.o
 
 OBJ=$(addprefix $(CACHE)/,$(MODULES))
 
-T_OBJ=$(addprefix $(CACHE),$(TEST))
+T_OBJ=$(addprefix $(CACHE)/,$(TEST))
 
 all: env $(OBJ)
 	$(CC) $(CFLAGS) $(OBJ) $(LIBS) -o $(OUTPUT)/$(TARGET)

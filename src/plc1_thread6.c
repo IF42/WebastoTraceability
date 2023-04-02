@@ -74,7 +74,7 @@ step_wait(PLC1_Thread6 * self)
     rework.table.array[rework.table.length] = '\0';
     rework.frame_code.array[rework.frame_code.length] = '\0';
 
-    if(model_update_pa30r_frame_rework(
+    if(model_pa30r_update_frame_rework(
         self->super.model
         , rework.table.array
         , rework.frame_code.array

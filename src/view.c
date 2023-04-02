@@ -86,6 +86,7 @@ view_logout(View * self)
         , self->model->logged_user);
 }
 
+
 GtkTreeViewColumn *
 view_new_view_column(
     char * label
@@ -165,25 +166,19 @@ view_fill_db_table_view(
                 , j
                 , db_table_content->array[i]->array[j]
                 , -1);
- 
-            free(db_table_content->array[i]->array[j]); 
         }
-
-        free(db_table_content->array[i]);
     }
-
-    free(db_table_content);
 }
 
 
 static void
 view_combo_table_changed_callback (
-  GtkComboBox* widget
+  GtkComboBox * widget
   , View * view)
 {
     view_init_logout_timer(view);
 
-    ArrayString * column_list = 
+    TableContent * column_list = 
         model_get_table_columns(
             view->model
             , gtk_combo_box_text_get_active_text(GTK_COMBO_BOX_TEXT(widget)));
@@ -191,40 +186,43 @@ view_combo_table_changed_callback (
     gtk_combo_box_text_remove_all(GTK_COMBO_BOX_TEXT(view->ui.combo_column));
     view_clear_table_list(view->ui.db_table_view);
 
-    GtkListStore * table_view_model = 
-        view_prepare_tree_model(column_list->super.size);
-
     if(column_list != NULL)
     {
+        GtkListStore * table_view_model = 
+            view_prepare_tree_model(column_list->super.size);
+
         for(size_t i = 0; i < column_list->super.size; i++)
         {
             gtk_combo_box_text_append_text(
                 GTK_COMBO_BOX_TEXT(view->ui.combo_column)
-                , column_list->array[i]);
+                , column_list->array[i]->array[1]);
 
             gtk_tree_view_append_column(
                 GTK_TREE_VIEW(view->ui.db_table_view)
-                , view_new_view_column(column_list->array[i], i));
-
-            free(column_list->array[i]);
+                , view_new_view_column(column_list->array[i]->array[1], i));
         }
         
+        array_delete(ARRAY(column_list));
+
         gtk_tree_view_set_model(
             GTK_TREE_VIEW(view->ui.db_table_view)
             , GTK_TREE_MODEL(table_view_model));
         gtk_combo_box_set_active(GTK_COMBO_BOX(view->ui.combo_column), 0);
+   
+        TableContent * db_table_content = 
+            model_get_table_content(
+                view->model
+                , gtk_combo_box_text_get_active_text(GTK_COMBO_BOX_TEXT(widget))
+                , "*"
+                , NULL
+                , NULL);
 
-        free(column_list);
+        if(db_table_content != NULL)
+        {
+            view_fill_db_table_view (table_view_model, db_table_content);
+            array_delete(ARRAY(db_table_content));
+        }
     }
-    
-    TableContent * db_table_content = 
-        model_get_table_content(
-            view->model
-            , gtk_combo_box_text_get_active_text(GTK_COMBO_BOX_TEXT(widget))
-            , "*"
-            , NULL
-            , NULL);
-    view_fill_db_table_view (table_view_model, db_table_content);
 
     gtk_entry_set_text(GTK_ENTRY(view->ui.entry_key), "");
 }
@@ -265,44 +263,52 @@ view_btn_logout_clicked_callback(GtkWidget * widget, View * view)
     view_logout(view);
 }
 
+
 static void
 view_btn_filter_click_callback(GtkWidget * widget, View * view)
 {
     (void) widget;
     view_init_logout_timer(view);
 
-    ArrayString * column_list = 
+    TableContent * column_list = 
         model_get_table_columns(
             view->model
             , gtk_combo_box_text_get_active_text(GTK_COMBO_BOX_TEXT(view->ui.combo_table)));
 
-    view_clear_table_list(view->ui.db_table_view);
-
-    for(size_t i = 0; i < column_list->super.size; i++)
+    if(column_list != NULL)
     {
-        gtk_tree_view_append_column(
+        view_clear_table_list(view->ui.db_table_view);
+
+        for(size_t i = 0; i < column_list->super.size; i++)
+        {
+            gtk_tree_view_append_column(
+                GTK_TREE_VIEW(view->ui.db_table_view)
+                , view_new_view_column(column_list->array[i]->array[1], i));
+        }
+
+        GtkListStore * table_view_model = 
+            view_prepare_tree_model(column_list->super.size);
+
+        gtk_tree_view_set_model(
             GTK_TREE_VIEW(view->ui.db_table_view)
-            , view_new_view_column(column_list->array[i], i));
+            , GTK_TREE_MODEL(table_view_model));
 
-        free(column_list->array[i]);
+        TableContent * db_table_content = 
+            model_get_table_content(
+                view->model 
+                , gtk_combo_box_text_get_active_text(GTK_COMBO_BOX_TEXT(view->ui.combo_table))
+                , "*"
+                , gtk_combo_box_text_get_active_text(GTK_COMBO_BOX_TEXT(view->ui.combo_column))
+                , (char*) gtk_entry_get_text(GTK_ENTRY(view->ui.entry_key)));
+
+        array_delete(ARRAY(column_list));
+
+        if(db_table_content != NULL)
+        {
+            view_fill_db_table_view (table_view_model, db_table_content);
+            array_delete(ARRAY(db_table_content));
+        }
     }
-
-    GtkListStore * table_view_model = 
-        view_prepare_tree_model(column_list->super.size);
-
-    gtk_tree_view_set_model(
-        GTK_TREE_VIEW(view->ui.db_table_view)
-        , GTK_TREE_MODEL(table_view_model));
-
-    TableContent * db_table_content = 
-        model_get_table_content(
-            view->model 
-            , gtk_combo_box_text_get_active_text(GTK_COMBO_BOX_TEXT(view->ui.combo_table))
-            , "*"
-            , gtk_combo_box_text_get_active_text(GTK_COMBO_BOX_TEXT(view->ui.combo_column))
-            , (char*) gtk_entry_get_text(GTK_ENTRY(view->ui.entry_key)));
-
-    view_fill_db_table_view (table_view_model, db_table_content);
 }
 
 
@@ -379,9 +385,7 @@ draw_graph(
     cairo_move_to(cr, 50, 50);
 
     for (int i = 0; i < 5; i++) 
-    {
         cairo_line_to(cr, 50 + i * 50, 50 + data[i].temperature);
-    }
 
     cairo_stroke(cr);
 
@@ -396,6 +400,7 @@ draw_graph(
   cairo_stroke(cr);
 }
 
+
 static gboolean 
 view_environment_chart_draw_callback(GtkWidget *widget, cairo_t *cr, gpointer data)
 {
@@ -406,9 +411,6 @@ view_environment_chart_draw_callback(GtkWidget *widget, cairo_t *cr, gpointer da
 
   return true;
 }
-
-
-
 
 
 static void
@@ -429,7 +431,7 @@ signals(View * self)
 void
 view_set_table_list(View * self)
 {
-    ArrayString * table_list = model_get_table_list(self->model);
+    TableContent * table_list = model_get_table_list(self->model);
 
     if(table_list != NULL)
     {
@@ -437,7 +439,7 @@ view_set_table_list(View * self)
         {
             gtk_combo_box_text_append_text(
                 GTK_COMBO_BOX_TEXT(self->ui.combo_table)
-                , table_list->array[i]);
+                , table_list->array[i]->array[0]);
         }
 
         array_delete(ARRAY(table_list));  
@@ -467,18 +469,12 @@ view(GtkApplication * app)
         view_set_table_list(&v);        
 
         signals(&v);
-        
+ 
         gtk_widget_show(GTK_WIDGET(v.ui.window));
     }
 
     /* treat error */
 }
-
-
-
-
-
-
 
 
 

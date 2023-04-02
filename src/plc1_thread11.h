@@ -7,6 +7,7 @@
 PLC_Thread *
 plc1_thread11_new(
     Model * model
-    , S7Object client);
+    , S7Object client
+    , char * csv_path);
 
 #endif

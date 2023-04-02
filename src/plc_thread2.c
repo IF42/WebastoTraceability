@@ -27,10 +27,15 @@ typedef struct
 #define PLC_THREAD2(T)((PLC_Thread2*) T)
 
 
+/**
+** time is synchronized every 60s if the run function is called every 500ms
+*/
+#define TIME_SYNC_INTERVAL 120 
+
 static bool
 plc_thread2_run(PLC_Thread * self)
 {
-    if(PLC_THREAD2(self)->counter >= 10)
+    if(PLC_THREAD2(self)->counter >= TIME_SYNC_INTERVAL)
     {
         PLC_THREAD2(self)->counter = 0;
         
@@ -56,7 +61,11 @@ plc_thread2_run(PLC_Thread * self)
         log_debug(self->model->log, "plc1 thread2 time synchronized");
     }
     else
+    {
         PLC_THREAD2(self)->counter++;    
+ //       printf("%d\n", PLC_THREAD2(self)->counter);
+ //       fflush(stdout);
+    }
     
     return true;
 }
@@ -72,8 +81,9 @@ plc_thread2_new(
 
     if(self != NULL)
     {
-        self->super = PLC_Thread(model, client, plc_thread2_run, (void(*)(PLC_Thread*))free);
+        self->super    = PLC_Thread(model, client, plc_thread2_run, (void(*)(PLC_Thread*))free);
         self->db_index = db_index;
+        self->counter  = TIME_SYNC_INTERVAL;
     }
 
     return PLC_THREAD(self);

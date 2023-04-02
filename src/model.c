@@ -4,6 +4,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdlib.h>
+#include <stdarg.h>
+#include <assert.h>
 
 
 Model *
@@ -35,14 +37,26 @@ model_init(void)
 
 
 static void
-array_string_delete(void* self)
+table_content_delete(TableContent * self)
 {
     if(self != NULL)
     {
-        for(size_t i = 0; i < ((ArrayString*)self)->super.size; i++)
+        for(size_t i = 0; i < self->super.size; i++)
+            array_delete(ARRAY(self->array[i]));
+
+        free(self);
+    }
+}
+
+static void
+array_string_delete(ArrayString * self)
+{
+    if(self != NULL)
+    {
+        for(size_t i = 0; i < self->super.size; i ++)
         {
-            if(((ArrayString*)self)->array[i] != NULL)
-                free(((ArrayString*)self)->array[i]);
+            if(self->array[i] != NULL)
+                free(self->array[i]);
         }
 
         free(self);
@@ -50,50 +64,99 @@ array_string_delete(void* self)
 }
 
 
-
-ArrayString *
-model_get_table_list(Model * self)
+static TableContent *
+model_db_read(
+    Model * self
+    , const char * query_format
+    , ...)
 {
-    const char * sql = 
-        "SELECT name FROM sqlite_schema WHERE type ='table' AND name NOT LIKE 'sqlite_%';";
-    sqlite3_stmt *res;
+    va_list args;
+    char sql_query[512];
+    sqlite3_stmt * res;
+
+    va_start(args, query_format);
+    vsnprintf(sql_query, 511, query_format, args);
+    va_end(args);
 
     pthread_mutex_lock(&self->mutex);
 
-    int rc = sqlite3_prepare_v2(self->db, sql, -1, &res, 0);
+    int rc = sqlite3_prepare_v2(self->db, sql_query, -1, &res, 0);
     
-    if (rc != SQLITE_OK) 
+    if (rc != SQLITE_OK)
     {
         sqlite3_finalize(res);
         return NULL;
     }
-     
-    ArrayString * table_list = 
-        (ArrayString*) array_new(sizeof(char*), 0, array_string_delete);
 
-    for(size_t i = 0; sqlite3_step(res) == SQLITE_ROW; i++)
+    TableContent * db_table_content = 
+        (TableContent*) array_new(
+                            sizeof(ArrayString*)
+                            , 0
+                            , (void (*)(void*))table_content_delete);
+
+    for (size_t i = 0; sqlite3_step(res) == SQLITE_ROW; i++)
     {
-        table_list = (ArrayString*) array_resize(ARRAY(table_list), i+1);
-        table_list->array[i] = strdup((char*) sqlite3_column_text(res, 0));
-    }
+        db_table_content = 
+            (TableContent*) array_resize(
+                                ARRAY(db_table_content)
+                                , i+1);
+        db_table_content->array[i] = 
+            (ArrayString*) array_new(
+                                sizeof(char*)
+                                , 0
+                                , (void(*)(void*)) array_string_delete);
+    
+        char * string;
 
+        for(size_t j = 0; (string = (char*) sqlite3_column_text(res, j)) != NULL; j++)
+        {
+            db_table_content->array[i] = 
+                (ArrayString*) array_resize(
+                                    ARRAY(db_table_content->array[i])
+                                    , j+1);
+            db_table_content->array[i]->array[j] = strdup(string);
+        }
+    } 
+    
     sqlite3_finalize(res);
     pthread_mutex_unlock(&self->mutex);
 
-    return table_list;
+    return db_table_content;
+}
+
+static bool
+model_db_write(
+    Model * self
+    , const char * query_format
+    , ...)
+{
+    va_list args;
+    char sql_query[512];
+    bool result = false;
+
+    va_start(args, query_format);
+    vsnprintf(sql_query, 511, query_format, args);
+    va_end(args);
+    
+    pthread_mutex_lock(&self->mutex);
+
+    int rc = sqlite3_exec(self->db, sql_query, 0, 0,  NULL);
+    
+    if (rc == SQLITE_OK)
+        result = true;
+
+    pthread_mutex_unlock(&self->mutex);
+
+    return result;
 }
 
 
-static void
-table_content_delete(void * self)
+TableContent *
+model_get_table_list(Model * self)
 {
-    if(self != NULL)
-    {
-        for(size_t i = 0; i < ((TableContent*)self)->super.size; i++)
-            array_delete(ARRAY(((TableContent*)self)->array[i]));
-
-        free(self);
-    }
+    return model_db_read(
+                self
+                , "SELECT name FROM sqlite_schema WHERE type ='table' AND name NOT LIKE 'sqlite_%';");
 }
 
 
@@ -105,81 +168,36 @@ model_get_table_content(
     , char * key
     , char * value)
 {
-    char sql[512] = {0};
-    
     if(key == NULL || value == NULL)
-        sprintf(sql, "SELECT %s FROM '%s' LIMIT 4000;", columns, table);
-    else
-        sprintf(sql, "SELECT %s FROM %s WHERE %s LIKE '%s' LIMIT 4000;", columns, table, key, value);
-
-    sqlite3_stmt *res;
-
-    pthread_mutex_lock(&self->mutex);
-
-    int rc = sqlite3_prepare_v2(self->db, sql, -1, &res, 0);
-    
-    if (rc != SQLITE_OK)
     {
-        sqlite3_finalize(res);
-        return NULL;
+        return model_db_read(
+                    self
+                    , "SELECT %s FROM '%s' LIMIT 4000;"
+                    , columns
+                    , table);
     }
-
-    TableContent * db_table_content = 
-        (TableContent*) array_new(sizeof(ArrayString*), 0, table_content_delete);
-
-    for (size_t i = 0; sqlite3_step(res) == SQLITE_ROW; i++)
+    else
     {
-        db_table_content = (TableContent*) array_resize(ARRAY(db_table_content), i+1);
-        db_table_content->array[i] = (ArrayString*) array_new(sizeof(char*), 0, array_string_delete);
-    
-        char * string;
-        for(size_t j = 0; (string = (char*) sqlite3_column_text(res, j)) != NULL; j++)
-        {
-            db_table_content->array[i] = (ArrayString*) array_resize(ARRAY(db_table_content->array[i]), j+1);
-            db_table_content->array[i]->array[j] = strdup(string);
-        }
-    } 
-    
-    sqlite3_finalize(res);
-    pthread_mutex_unlock(&self->mutex);
-
-    return db_table_content;
+        return model_db_read(
+                    self
+                    , "SELECT %s FROM %s WHERE %s LIKE '%s' LIMIT 4000;"
+                    , columns
+                    , table
+                    , key
+                    , value);
+    }
 }
 
 
-ArrayString *
+TableContent *
 model_get_table_columns(
     Model * self
     , char * table)
 {
-    char sql[512] = {0};  
-    sprintf(sql, "PRAGMA table_info(%s)", table);
-
-    sqlite3_stmt *res;
-
-    pthread_mutex_lock(&self->mutex);
-
-    int rc = sqlite3_prepare_v2(self->db, sql, -1, &res, 0);
-    
-    if (rc != SQLITE_OK)
-    {
-        sqlite3_finalize(res);
-        return NULL;
-    }
-        
-    ArrayString * columns = 
-        (ArrayString*) array_new(sizeof(char*), 0, array_string_delete);
-
-    for(size_t i = 0; sqlite3_step(res) == SQLITE_ROW; i++)
-    {
-        columns = (ArrayString*) array_resize(ARRAY(columns), i+1);
-        columns->array[i] = strdup((char*) sqlite3_column_text(res, 1));
-    } 
-
-    sqlite3_finalize(res);
-    pthread_mutex_unlock(&self->mutex);
-
-    return columns;
+    return model_db_read(
+                self
+                , "PRAGMA table_info(%s)"
+                , table);
 }
 
 
@@ -189,7 +207,10 @@ model_check_cover_exists(
     , char * cover_code)
 {
     char query[512] = {0};
-    sprintf(query, "SELECT cover_code FROM covers WHERE cover_code='%s';", cover_code);
+    sprintf(
+        query
+        , "SELECT cover_code FROM covers WHERE cover_code='%s';"
+        , cover_code);
 
     bool cover_exists = false;
     sqlite3_stmt *res;
@@ -220,34 +241,34 @@ model_write_new_cover(
     , char * bottle2_batch
     , bool spare)
 {
-    char query[512] = {0};
-    bool result = false;
-
     time_t t = time(NULL);
     struct tm tm = *localtime(&t);
 
-    sprintf(
-        query
-        , "INSERT INTO covers "
-        "(cover_code, orientation, PA10B_date_time, PA10B_activator_left, PA10B_activator_right, spare) "
-        "VALUES('%s', '%s', '%02d.%02d.%d*%02d:%02d', '%s', '%s', '%s');"
-        , cover_code
-        , orientation ? "left" : "right"
-        , tm.tm_mday, tm.tm_mon + 1, tm.tm_year + 1900, tm.tm_hour, tm.tm_min
-        , bottle1_batch
-        , bottle2_batch
-        , spare ? "YES" : "NO");
+    return model_db_write(
+            self
+            , "INSERT INTO covers "
+              "(cover_code, orientation, PA10B_date_time, PA10B_activator_left, PA10B_activator_right, spare) "
+              "VALUES('%s', '%s', '%02d.%02d.%d*%02d:%02d', '%s', '%s', '%s');"
+            , cover_code
+            , orientation ? "left" : "right"
+            , tm.tm_mday, tm.tm_mon + 1, tm.tm_year + 1900, tm.tm_hour, tm.tm_min
+            , bottle1_batch
+            , bottle2_batch
+            , spare ? "YES" : "NO");
+}
 
-    pthread_mutex_lock(&self->mutex);
 
-    int rc = sqlite3_exec(self->db, query, 0, 0, NULL);
-    
-    pthread_mutex_unlock(&self->mutex);
-
-    if (rc == SQLITE_OK)
-        result = true;
-
-    return result;
+bool
+model_set_cover_used(
+    Model * self
+    , char * cover_code)
+{
+    return model_db_write(
+            self
+            , "UPDATE covers SET "
+              "used='YES'"
+              "WHERE cover_code='%s';"
+            , cover_code);
 }
 
 
@@ -260,34 +281,21 @@ model_write_new_frame(
     , char * primer_207_sika
     , char * remover_208_sika)
 {
-    char query[512] = {0};
-    bool result = false;
-
     time_t t = time(NULL);
     struct tm tm = *localtime(&t);
 
-    sprintf(
-        query
-        , "INSERT INTO %s "
-        "(frame_code, frame_order, PA30R_date_time, PA30R_Primer_207_SIKA, PA30R_Remover_208_SIKA, PA30R_rework)"
-        " VALUES ('%s', '%d', '%02d.%02d.%d*%02d:%02d', '%s', '%s', '0')';" 
-        , table
-        , frame_code
-        , order
-        , tm.tm_mday, tm.tm_mon + 1, tm.tm_year + 1900, tm.tm_hour, tm.tm_min
-        , primer_207_sika
-        , remover_208_sika);
-
-    pthread_mutex_lock(&self->mutex);
-
-    int rc = sqlite3_exec(self->db, query, 0, 0, NULL);
-
-    pthread_mutex_unlock(&self->mutex);
-    
-    if (rc == SQLITE_OK)
-        result = true;
-
-    return result;
+    return model_db_write(
+            self
+            , "INSERT INTO %s "
+              "(ID, frame_code, frame_order, PA30R_date_time, PA30R_Primer_207_SIKA, PA30R_Remover_208_SIKA, PA30R_rework)"
+              " VALUES ('172%s', '%s', '%d', '%02d.%02d.%d*%02d:%02d', '%s', '%s', '0')';" 
+            , order
+            , table
+            , frame_code
+            , order
+            , tm.tm_mday, tm.tm_mon + 1, tm.tm_year + 1900, tm.tm_hour, tm.tm_min
+            , primer_207_sika
+            , remover_208_sika);
 }
 
 
@@ -297,100 +305,419 @@ model_write_environment_data(
     , float temperature
     , float humidity)
 {
-    bool result = false;
-
     time_t t = time(NULL);
     struct tm tm = *localtime(&t);
 
-    char query[512];
-    sprintf(
-        query
-        , "INSERT INTO enviroment "
-            "VALUES('%02d.%02d.%d*%02d:%02d:%02d', '%02.2f', '%02.2f');"
-        , tm.tm_mday, tm.tm_mon + 1, tm.tm_year + 1900, tm.tm_hour, tm.tm_min, tm.tm_sec
-        , temperature
-        , humidity);
-
-    pthread_mutex_lock(&self->mutex);
-
-    int rc = sqlite3_exec(self->db, query, 0, 0, NULL);
-    
-    pthread_mutex_unlock(&self->mutex);
-
-    if (rc == SQLITE_OK)
-        result = true;
-
-    return result;
+    return model_db_write(
+            self
+            , "INSERT INTO enviroment "
+              "VALUES('%02d.%02d.%d*%02d:%02d:%02d', '%02.2f', '%02.2f');"
+            , tm.tm_mday, tm.tm_mon + 1, tm.tm_year + 1900, tm.tm_hour, tm.tm_min, tm.tm_sec
+            , temperature
+            , humidity);
 }
 
 
 bool
-model_update_pa30r_frame_rework(
+model_pa30r_update_frame_rework(
     Model * self
     , char * table
     , char * frame_code
     , uint8_t rework)
 {
-    bool result = false;
-    char query[512];
     time_t t = time(NULL);
     struct tm tm = *localtime(&t);
 
-    sprintf(
-        query
-        , "UPDATE %s SET "
-            "PA30R_rework='%d', PA30R_date_time='%02d.%02d.%d*%02d:%02d' "
-            "WHERE frame_code='%s';"
-        , table
-        , rework
-        , tm.tm_mday, tm.tm_mon + 1, tm.tm_year + 1900, tm.tm_hour, tm.tm_min
-        , frame_code);
-    
-    pthread_mutex_lock(&self->mutex);
-
-    int rc = sqlite3_exec(self->db, query, 0, 0, NULL);
-    
-    pthread_mutex_unlock(&self->mutex);
-
-    if (rc == SQLITE_OK)
-        result = true;
-
-    return result;   
+    return model_db_write(
+            self
+            , "UPDATE %s SET "
+              "PA30R_rework='%d', PA30R_date_time='%02d.%02d.%d*%02d:%02d' "
+              "WHERE frame_code='%s';"
+            , table
+            , rework
+            , tm.tm_mday, tm.tm_mon + 1, tm.tm_year + 1900, tm.tm_hour, tm.tm_min
+            , frame_code);
 }
 
 
 bool
-model_update_pa60r_frame_rework(
+model_pa60r_update_frame_rework(
     Model * self
     , char * table
     , char * frame_code
     , uint8_t rework)
 {
-    bool result = false;
-    char query[512];
     time_t t = time(NULL);
     struct tm tm = *localtime(&t);
 
+    return model_db_write(
+            self
+            , "UPDATE %s SET "
+              "PA60R_rework='%d', PA60R_date_time='%02d.%02d.%d*%02d:%02d' "
+              "WHERE frame_code='%s';"
+            , table
+            , rework
+            , tm.tm_mday, tm.tm_mon + 1, tm.tm_year + 1900, tm.tm_hour, tm.tm_min
+            , frame_code);
+}
+
+
+bool
+model_pa60r_update_frame(
+     Model * self
+    , char * table
+    , char * frame_code)
+{
+    time_t t = time(NULL);
+    struct tm tm = *localtime(&t);
+
+    return model_db_write(
+            self
+            , "UPDATE %s SET "
+              "PA60R_date_time='%02d.%02d.%d*%02d:%02d' "
+              "WHERE frame_code='%s';"
+            , table
+            , tm.tm_mday, tm.tm_mon + 1, tm.tm_year + 1900, tm.tm_hour, tm.tm_min
+            , frame_code);
+}
+
+
+bool
+model_pa30b_update_frame(
+     Model * self
+    , char * frame_code
+    , char * left_cover_code
+    , char * right_cover_code)
+{
+    time_t t = time(NULL);
+    struct tm tm = *localtime(&t);
+
+    return model_db_write(
+            self
+            , "UPDATE frame_582 SET "
+              "PA30B_date_time='%02d.%02d.%d*%02d:%02d', left_cover_code='%s', right_cover_code='%s' "
+              "WHERE frame_code='%s';"
+            , tm.tm_mday, tm.tm_mon + 1, tm.tm_year + 1900, tm.tm_hour, tm.tm_min
+            , left_cover_code
+            , right_cover_code
+            , frame_code);
+}
+
+
+
+bool
+model_generate_frame_csv(
+    Model * self
+    , char * csv_path
+    , char * table
+    , char * frame_code
+    , int8_t temperature
+    , int8_t humidity)
+{
+    int8_t mon;
+    int8_t day;
+    int16_t year;
+    int8_t hour;
+    int8_t min; 
+    char file_name[256];
+	char primer_batch[32];
+    char primer_part_number[32];
+    char primer_fill_date[32];
+    char primer_fill_time[32];
+    char primer_expiration_date[32];
+    char primer_expiration_time[32];
+
+    TableContent * content = 
+        model_db_read(
+            self
+            , "SELECT * FROM %s WHERE frame_code='%s';"
+            , table
+            , frame_code);
+
+    if(content == NULL || content->super.size == 0)
+        return false;
+
+    if(strcmp(table, "frame_582") == 0)
+		sscanf(content->array[0]->array[9], "%hhd.%hhd.%hd %hhd:%hhd", &mon, &day, &year, &hour, &min);
+	else
+		sscanf(content->array[0]->array[4], "%hhd.%hhd.%hd %hhd:%hhd", &mon, &day, &year, &hour, &min);
+
+     sscanf(
+        content->array[0]->array[5]
+        , "%[^*]*%[^*]*%[^ ] %[^*]*%[^*]*%[^*]*S"
+        , primer_batch
+        , primer_part_number
+        , primer_fill_date
+        , primer_fill_time
+        , primer_expiration_date
+        , primer_expiration_time);
+
+    snprintf(
+		file_name
+		, 255
+		, "%s/172_%02d%02d%d%02d%02d00.csv"
+		, csv_path
+		, year
+		, mon
+		, day
+		, hour
+		, min);
+
+    FILE * f = fopen(file_name, "w");
+
+    if(f == NULL)
+    {
+        array_delete(ARRAY(content));
+        return false;
+    }
+
+    for(uint16_t i = 1; i <= 2578; i++)
+    {
+        switch(i)
+        {
+            case 1:
+				fprintf(f, "%02d%02d%02d", year, mon, day);
+                break;
+            case 2:
+				fprintf(f, "%02d%02d00", hour, min);
+                break;
+            case 3:
+                fputs("00000172", f);
+                break;
+            case 4:
+                fputs("00000172", f);
+                break;
+            case 5:
+                if(strcmp(table, "frame_581") == 0)
+                    fputs("1762975A", f);
+                else if (strcmp(table, "frame_582") == 0)
+                    fputs("1762976A", f);
+                else if(strcmp(table, "frame_AU326_1") == 0)
+                    fputs("1768362A", f);
+                break;
+            case 6:
+                //frame ID
+                fprintf(f, "%s", content->array[0]->array[0]);
+                break;
+            case 7:
+                fputs("OK", f);
+                break;
+            case 9:
+                fputs("1", f);
+                break;
+            case 10:
+                fputs("DA", f);
+                break;        
+            case 8:
+                fputs("200", f);
+                break;
+            case 1263:
+                 // frame_code
+                fprintf(f, "%s", content->array[0]->array[1]);
+                break;
+            case 1268:
+                 if(strcmp(table, "frame_581") == 0)
+                        fprintf(f, "AU581*1762975*%s*%s", content->array[0]->array[4], content->array[0]->array[2]);
+                 else if(strcmp(table, "frame_582") == 0)
+                        fprintf(f, "AU582*1762976*%s*%s", content->array[0]->array[9], content->array[0]->array[2]);
+                 else if(strcmp(table, "frame_AU326_1") == 0)
+                        fprintf(f, "AU326-1*1768362*%s*%s",content->array[0]->array[4], content->array[0]->array[2]);
+                break;
+            case 1288:
+                //left cover code
+                if(strcmp(table, "frame_582") == 0)
+                     fprintf(f, "%s", content->array[0]->array[10]);
+               break;
+            case 1273:
+                //right cover code
+                if (strcmp(table, "frame_582") == 0)
+                     fprintf(f, "%s", content->array[0]->array[11]);
+                break;
+            case 1278:
+                // glue application date time (PA30B produce date time)
+                if (strcmp(table, "frame_582") == 0)
+                    fprintf(f, "%s", content->array[0]->array[9]);
+                break;
+            case 1283:
+                if (strcmp(table, "frame_582") == 0)
+                    fputs("0", f);
+                break;
+            case 265:
+                fprintf(f, "%02d", temperature);
+                break;
+            case 269:
+                fprintf(f, "%02d", humidity);
+                break;
+            case 1333:
+                fputs("0", f);
+                break;
+            case 2553:
+                fputs(primer_batch, f);
+                break;
+            case 2548:
+                fputs(primer_part_number, f);
+                break;
+            case 2563:
+                fputs(primer_fill_date, f);
+                break;
+            case 2568:
+                fputs(primer_fill_time, f);
+                break;
+            case 2573:
+                fputs(primer_expiration_date, f);
+                break;
+            case 2578:
+                fputs(primer_expiration_time, f);
+                break;
+        }
+        
+        fputc(',', f);
+        fflush(f);
+    }
+    
+    fflush(f);
+    fclose(f);
+    array_delete(ARRAY(content));
+
+    return true;
+}
+
+
+bool
+model_supplier_bottle_exists(
+    Model * self
+    , char * bottle_batch_code)
+{
+    char query[512] = {0};
     sprintf(
         query
-        , "UPDATE %s SET "
-            "PA60R_rework='%d', PA60R_date_time='%02d.%02d.%d*%02d:%02d' "
-            "WHERE frame_code='%s';"
-        , table
-        , rework
-        , tm.tm_mday, tm.tm_mon + 1, tm.tm_year + 1900, tm.tm_hour, tm.tm_min
-        , frame_code);
-    
+        , "SELECT batch_code FROM suplier_bottle WHERE batch_code='%s';"
+        , bottle_batch_code);
+
+    bool cover_exists = false;
+    sqlite3_stmt *res;
+
     pthread_mutex_lock(&self->mutex);
 
-    int rc = sqlite3_exec(self->db, query, 0, 0, NULL);
+    int rc = sqlite3_prepare_v2(self->db, query, -1, &res, NULL);
     
+    if (rc == SQLITE_OK)
+    {
+        if(sqlite3_step(res) == SQLITE_ROW)
+            cover_exists = true;
+    }
+
+    sqlite3_finalize(res);
     pthread_mutex_unlock(&self->mutex);
 
-    if (rc == SQLITE_OK)
-        result = true;
+    return cover_exists;
+}
 
-    return result;   
+
+bool
+model_write_supplier_bottle(
+    Model * self
+    , char * chemical_type
+    , char * batch_code)
+{
+    time_t t = time(NULL);
+    struct tm tm = *localtime(&t);
+
+    return model_db_write(
+            self
+            , "INSERT INTO suplier_bottle "
+              "VALUES ('%s', '%s', '*', '%02d.%02d.%d*%02d:%02d', '0');"
+            , batch_code
+            , chemical_type
+            , tm.tm_mday, tm.tm_mon + 1, tm.tm_year + 1900, tm.tm_hour, tm.tm_min);
+}
+
+
+TableContent *
+model_read_supplier_bottle(
+    Model * self
+    , char * batch_code)
+{
+    return model_db_read(
+            self
+            , "SELECT chemical_type, last_shake, fill_counter FROM suplier_bottle WHERE batch_code='%s';"
+            , batch_code);
+}
+
+
+bool
+model_write_glue_barrel(
+    Model * self
+    , char * material_description
+    , char * material_type
+    , char * batch_code
+    , char * validity)
+{
+    return model_db_write(
+            self
+            , "INSERT INTO glue VALUES ('%s', '%s', '%s', '%s');"
+            , material_description
+            , material_type
+            , batch_code
+            , validity);
+}
+
+
+TableContent *
+model_read_cover(
+    Model * self
+    , char * cover_code)
+{
+    return model_db_read(
+            self
+            , "SELECT orientation, PA10B_date_time, used, spare FROM covers WHERE cover_code='%s';"
+            , cover_code);
+}
+
+
+TableContent *
+model_read_frame(
+    Model * self
+    , char * frame_code)
+{
+    return model_db_read(
+            self
+            , "SELECT PA30R_date_time, PA60R_date_time, frame_order FROM frame_582 WHERE frame_code='%s';"
+            , frame_code);
+}
+
+
+bool
+model_update_bottle_shake_time(
+    Model * self
+    , char * batch_code)
+{
+    time_t t = time(NULL);
+    struct tm tm = *localtime(&t);
+
+    return model_db_write(
+            self
+            , "UPDATE suplier_bottle SET "
+              "last_shake='%02d.%02d.%d*%02d:%02d' "
+              "WHERE batch_code='%s';"
+            , tm.tm_mday, tm.tm_mon + 1, tm.tm_year + 1900, tm.tm_hour, tm.tm_min
+            , batch_code);
+}
+
+
+bool
+model_update_bottle_fill_counter(
+    Model * self
+    , char * batch_code
+    , uint8_t fill_counter)
+{
+    return model_db_write(
+            self
+            , "UPDATE suplier_bottle SET "
+              "fill_counter='%d' "
+              "WHERE batch_code='%s';"
+            , fill_counter
+            , batch_code);
 }
 
 

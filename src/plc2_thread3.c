@@ -1,4 +1,5 @@
 #include "plc2_thread3.h"
+#include "plc_thread_config.h"
 
 #include <time.h>
 #include <stdlib.h>
@@ -7,9 +8,6 @@
 
 /* reading interval in seconds */
 #define READING_INTERVAL 60
-
-
-#define DB_INDEX 35
 
 
 struct Environment
@@ -61,15 +59,16 @@ step_wait(PLC2_Thread3 * self)
     time_t cur_t  = time(NULL);
     uint8_t error = 0;
 
-    if(Cli_DBWrite(self->super.client, DB_INDEX, 10, 1, &error) != 0)
+    
+    if(Cli_DBWrite(self->super.client, PLC2_THREAD3_DB_INDEX, 6, 1, &error) != 0)
         return ThreadResult(.is_error = true);
 
     if(difftime(cur_t, self->last_write) < READING_INTERVAL)
         return ThreadResult(.step = WAIT);
 
-    if(Cli_DBRead(self->super.client, DB_INDEX, 2, sizeof(Environment), &environment) != 0)
+    if(Cli_DBRead(self->super.client, PLC2_THREAD3_DB_INDEX, 2, sizeof(Environment), &environment) != 0)
         return ThreadResult(.is_error = true);
-
+   
     if(model_write_environment_data(
         self->super.model
         , swap_endian(environment.temperature) / 100.0
@@ -89,8 +88,8 @@ step_error(PLC2_Thread3 * self)
     uint8_t error = 0x01;
     uint8_t reset;
 
-    if(Cli_DBWrite(self->super.client, DB_INDEX, 10, 1, &error) != 0
-        || Cli_DBRead(self->super.client, DB_INDEX, 0, 1, &reset) != 0)
+    if(Cli_DBWrite(self->super.client, PLC2_THREAD3_DB_INDEX, 6, 1, &error) != 0
+        || Cli_DBRead(self->super.client, PLC2_THREAD3_DB_INDEX, 0, 1, &reset) != 0)
     {
         return ThreadResult(.is_error = true);
     }

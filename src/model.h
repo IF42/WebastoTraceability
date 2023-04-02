@@ -43,11 +43,11 @@ Model *
 model_init(void);
 
 
-ArrayString *
+TableContent *
 model_get_table_list(Model * self);
 
 
-ArrayString *
+TableContent *
 model_get_table_columns(
     Model * self
     , char * table);
@@ -96,7 +96,7 @@ model_write_environment_data(
 
 
 bool
-model_update_pa30r_frame_rework(
+model_pa30r_update_frame_rework(
     Model * self
     , char * table
     , char * frame_code
@@ -104,11 +104,97 @@ model_update_pa30r_frame_rework(
 
 
 bool
-model_update_pa60r_frame_rework(
+model_pa60r_update_frame_rework(
     Model * self
     , char * table
     , char * frame_code
     , uint8_t rework);
+
+
+bool
+model_pa60r_update_frame(
+     Model * self
+    , char * table
+    , char * frame_code);
+
+
+bool
+model_pa30b_update_frame(
+     Model * self
+    , char * frame_code
+    , char * left_cover_code
+    , char * right_cover_code);
+
+
+bool
+model_generate_frame_csv(
+    Model * self
+    , char * csv_path
+    , char * table
+    , char * frame_code
+    , int8_t temperature
+    , int8_t humidity);
+
+
+
+bool
+model_supplier_bottle_exists(
+    Model * self
+    , char * bottle_batch_code);
+
+
+bool
+model_write_supplier_bottle(
+    Model * self
+    , char * chemical_type
+    , char * batch_code);
+
+
+TableContent *
+model_read_supplier_bottle(
+    Model * self
+    , char * batch_code);
+
+
+bool
+model_write_glue_barrel(
+    Model * self
+    , char * material_description
+    , char * material_type
+    , char * batch_code
+    , char * validity);
+
+
+TableContent *
+model_read_cover(
+    Model * self
+    , char * cover_code);
+
+
+bool
+model_set_cover_used(
+    Model * self
+    , char * cover_code);
+
+
+TableContent *
+model_read_frame(
+    Model * self
+    , char * frame_code);
+
+
+bool
+model_update_bottle_fill_counter(
+    Model * self
+    , char * batch_code
+    , uint8_t fill_counter);
+
+
+bool
+model_update_bottle_shake_time(
+    Model * self
+    , char * batch_code);
+
 
 void
 model_delete(Model * self);

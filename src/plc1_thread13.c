@@ -1,4 +1,5 @@
 #include "plc1_thread13.h"
+#include "plc_thread_config.h"
 
 
 #include <stdlib.h>
@@ -29,24 +30,94 @@ typedef struct
 #define PLC1_THREAD13(T)((PLC1_Thread13*) T)
 
 
+typedef struct
+{
+    uint8_t execute:1;
+}Execute;
+
+
+typedef struct
+{
+    PLC_String chemical_type;
+    PLC_String batch_code;
+}Bottle;
+
+typedef struct
+{
+    uint8_t DONE:1;
+    uint8_t ERROR:1;
+}Result;
+
+
 static ThreadResult
 step_wait(PLC1_Thread13 * self)
 {
+    Execute execute;
+    Bottle bottle;
+    Result result = {0};
 
+    if(Cli_DBRead(self->super.client, PLC1_THREAD13_DB_INDEX, 2, sizeof(Execute), &execute) != 0
+        || Cli_DBWrite(self->super.client, PLC1_THREAD13_DB_INDEX, 0, sizeof(Result), &result) != 0)
+    {
+        return ThreadResult(.is_error = true);
+    }
+
+    if(execute.execute == false)
+        return ThreadResult(.step = WAIT);
+
+    if(Cli_DBRead(self->super.client, PLC1_THREAD13_DB_INDEX, 4, sizeof(Bottle), &bottle) != 0)
+        return ThreadResult(.is_error = true);
+
+    bottle.chemical_type.array[bottle.chemical_type.length] = '\0';
+    bottle.batch_code.array[bottle.batch_code.length] = '\0';
+
+    if(model_write_supplier_bottle(
+        self->super.model
+        , bottle.chemical_type.array
+        , bottle.batch_code.array) == true)
+    {
+        return ThreadResult(.step = FINISH);
+    }
+    else
+        return ThreadResult(.step = ERROR);
 }
 
 
 static ThreadResult
 step_finish(PLC1_Thread13 * self)
 {
+    Result result = {.DONE = true};
+    Execute execute;
 
+    if(Cli_DBRead(self->super.client, PLC1_THREAD13_DB_INDEX, 2, sizeof(Execute), &execute) != 0
+        || Cli_DBWrite(self->super.client, PLC1_THREAD13_DB_INDEX, 0, sizeof(Result), &result) != 0)
+    {
+        return ThreadResult(.is_error = true);
+    }
+
+    if(execute.execute == false)
+        return ThreadResult(.step = WAIT);
+    else
+        return ThreadResult(.step = FINISH);
 }
 
 
 static ThreadResult 
 step_error(PLC1_Thread13 * self)
 {
+    Result result = {.ERROR = true};
+    Execute execute;
 
+    if(Cli_DBRead(self->super.client, PLC1_THREAD13_DB_INDEX, 2, sizeof(Execute), &execute) != 0
+        || Cli_DBWrite(self->super.client, PLC1_THREAD13_DB_INDEX, 0, sizeof(Result), &result) != 0)
+    {
+        return ThreadResult(.is_error = true);
+    }
+
+    if(execute.execute == false)
+        return ThreadResult(.step = WAIT);
+    else
+        return ThreadResult(.step = ERROR);
 }
 
 
