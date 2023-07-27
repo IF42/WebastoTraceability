@@ -2,7 +2,6 @@
 #define _LOGIN_H_
 
 #include <stdbool.h>
-#include <array.h>
 #include <stdio.h>
 
 

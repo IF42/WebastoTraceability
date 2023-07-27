@@ -20,15 +20,9 @@ main(int argc, char ** argv)
         return EXIT_SUCCESS;
     }
 
-    #if defined(_WIN64) || defined(_WIN32)
     app = gtk_application_new(
                 "gtk.example.webasto"
                 , G_APPLICATION_DEFAULT_FLAGS);
-    #else
-     app = gtk_application_new(
-                "gtk.example.webasto"
-                , G_APPLICATION_FLAGS_NONE);
-    #endif
 
     g_signal_connect(
         G_OBJECT(app)

@@ -1,6 +1,7 @@
 #include "plc1_thread11.h"
 #include "plc_thread_config.h"
 
+#include <util.h>
 #include <stdlib.h>
 #include <string.h>
 

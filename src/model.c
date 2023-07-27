@@ -1,5 +1,6 @@
 #include "model.h"
 
+#include <util.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -24,13 +25,13 @@ model_init(void)
   
     if(rc != SQLITE_OK)
     {
-        log_error(self->log, "SQLITE open error: %d", rc);
+        log_error(self->log, "SQLITE open error: %d", rc, sqlite3_errmsg(self->db));
         model_delete(self);
-
-        pthread_mutex_init(&self->mutex, NULL);
 
         return NULL;
     }
+
+    pthread_mutex_init(&self->mutex, NULL);
 
     return self;
 }
@@ -51,20 +52,20 @@ table_content_delete(TableContent * self)
 static void
 array_string_delete(ArrayString * self)
 {
-    if(self != NULL)
-    {
-        for(size_t i = 0; i < self->super.size; i ++)
-        {
-            if(self->array[i] != NULL)
-                free(self->array[i]);
-        }
+    if(self == NULL) 
+        return;
 
-        free(self);
+    for(size_t i = 0; i < self->super.size; i ++)
+    {
+        if(self->array[i] != NULL)
+            free(self->array[i]);
     }
+
+    free(self);
 }
 
 
-static TableContent *
+TableContent *
 model_db_read(
     Model * self
     , const char * query_format
@@ -85,6 +86,10 @@ model_db_read(
     if (rc != SQLITE_OK)
     {
         sqlite3_finalize(res);
+        log_error(self->log, "SQLITE read table error: (%d) %s", rc, sqlite3_errmsg(self->db));
+
+        pthread_mutex_unlock(&self->mutex);
+
         return NULL;
     }
 
@@ -156,11 +161,11 @@ model_get_table_list(Model * self)
 {
     return model_db_read(
                 self
-                , "SELECT name FROM sqlite_schema WHERE type ='table' AND name NOT LIKE 'sqlite_%';");
+                , "SELECT name FROM sqlite_schema WHERE type ='table' AND name NOT LIKE \"sqlite_%\";");
 }
 
 
-TableContent *
+TableContent * 
 model_get_table_content(
     Model * self
     , char * table

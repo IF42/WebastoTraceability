@@ -42,8 +42,6 @@ typedef struct
     Ui value;
 }O_Ui;
 
-#define O_Ui_Just(T)(O_Ui){true, T}
-#define O_Ui_Nothing (O_Ui){false}
 
 
 O_Ui 

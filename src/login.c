@@ -1,15 +1,15 @@
 #include "login.h"
 
+#include <array.h>
 #include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <openssl/sha.h>
+#include <util.h>
 
 #define ACCOUNT_FILE "passwd"
-
-#define SALT "$6$"
 
 
 typedef struct

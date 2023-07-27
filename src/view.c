@@ -377,6 +377,9 @@ draw_graph(
     cairo_t *cr
     , GtkAllocation allocation)
 {
+    /* unused parameter */
+    (void) allocation;
+
     cairo_set_source_rgba(cr, 0, 0, 0, 1);
 
     cairo_set_source_rgba(cr, 0, 0, 0, 1);
@@ -397,19 +400,25 @@ draw_graph(
         cairo_line_to(cr, 50 + i * 50, 50 + data[i].humidity);
     }
 
-  cairo_stroke(cr);
+    cairo_stroke(cr);
 }
 
 
 static gboolean 
-view_environment_chart_draw_callback(GtkWidget *widget, cairo_t *cr, gpointer data)
+view_environment_chart_draw_callback(
+    GtkWidget * widget
+    , cairo_t *cr
+    , gpointer data)
 {
-  GtkAllocation allocation;
-  gtk_widget_get_allocation(widget, &allocation); 
+    /* unused attribute */
+    (void) data;
 
-  draw_graph(cr, allocation);
+    GtkAllocation allocation;
+    gtk_widget_get_allocation(widget, &allocation); 
 
-  return true;
+    draw_graph(cr, allocation);
+
+    return true;
 }
 
 

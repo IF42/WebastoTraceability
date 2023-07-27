@@ -1,6 +1,7 @@
 #include "plc2_thread7.h"
 #include "plc_thread_config.h"
 
+#include <util.h>
 #include <time.h>
 #include <stdlib.h>
 #include <endian.h>

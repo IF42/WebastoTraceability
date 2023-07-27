@@ -1,65 +1,89 @@
 .cache/main.o: app/main.c app/../src/view.h app/../src/ui.h
-.cache/controller.o: src/controller.c src/controller.h src/model.h \
- src/plc_thread_config.h src/plc_thread1.h src/plc_thread.h \
- src/plc_thread2.h src/plc1_thread3.h src/plc1_thread4.h \
- src/plc1_thread5.h src/plc1_thread6.h src/plc1_thread7.h \
- src/plc1_thread8.h src/plc1_thread9.h src/plc1_thread10.h \
- src/plc1_thread11.h src/plc1_thread12.h src/plc1_thread13.h \
- src/plc1_thread14.h src/plc1_thread15.h src/plc1_thread16.h \
- src/plc2_thread3.h src/plc2_thread4.h src/plc2_thread5.h \
- src/plc2_thread6.h src/plc2_thread7.h src/plc2_thread8.h
-.cache/login.o: src/login.c src/login.h
-.cache/model.o: src/model.c src/model.h
-.cache/plc_thread.o: src/plc_thread.c src/plc_thread.h src/model.h
+.cache/controller.o: src/controller.c src/controller.h src/model.h util/log.h \
+ util/array.h src/plc_thread_config.h src/plc_thread1.h src/plc_thread.h \
+ util/endian.h util/snap7.h src/plc_thread2.h src/plc1_thread3.h \
+ src/plc1_thread4.h src/plc1_thread5.h src/plc1_thread6.h \
+ src/plc1_thread7.h src/plc1_thread8.h src/plc1_thread9.h \
+ src/plc1_thread10.h src/plc1_thread11.h src/plc1_thread12.h \
+ src/plc1_thread13.h src/plc1_thread14.h src/plc1_thread15.h \
+ src/plc1_thread16.h src/plc2_thread3.h src/plc2_thread4.h \
+ src/plc2_thread5.h src/plc2_thread6.h src/plc2_thread7.h \
+ src/plc2_thread8.h src/plc2_thread9.h
+.cache/login.o: src/login.c src/login.h util/array.h util/util.h
+.cache/model.o: src/model.c src/model.h util/log.h util/array.h
+.cache/plc_thread.o: src/plc_thread.c src/plc_thread.h src/model.h util/log.h \
+ util/array.h util/endian.h util/snap7.h
 .cache/plc_thread1.o: src/plc_thread1.c src/plc_thread1.h src/plc_thread.h \
- src/model.h
+ src/model.h util/log.h util/array.h util/endian.h util/snap7.h
 .cache/plc_thread2.o: src/plc_thread2.c src/plc_thread2.h src/plc_thread.h \
- src/model.h
+ src/model.h util/log.h util/array.h util/endian.h util/snap7.h
 .cache/plc1_thread10.o: src/plc1_thread10.c src/plc1_thread10.h src/plc_thread.h \
- src/model.h src/plc_thread_config.h
+ src/model.h util/log.h util/array.h util/endian.h util/snap7.h \
+ src/plc_thread_config.h
 .cache/plc1_thread11.o: src/plc1_thread11.c src/plc1_thread11.h src/plc_thread.h \
- src/model.h src/plc_thread_config.h
+ src/model.h util/log.h util/array.h util/endian.h util/snap7.h \
+ src/plc_thread_config.h
 .cache/plc1_thread12.o: src/plc1_thread12.c src/plc1_thread12.h src/plc_thread.h \
- src/model.h src/plc_thread_config.h
+ src/model.h util/log.h util/array.h util/endian.h util/snap7.h \
+ src/plc_thread_config.h
 .cache/plc1_thread13.o: src/plc1_thread13.c src/plc1_thread13.h src/plc_thread.h \
- src/model.h src/plc_thread_config.h
+ src/model.h util/log.h util/array.h util/endian.h util/snap7.h \
+ src/plc_thread_config.h
 .cache/plc1_thread14.o: src/plc1_thread14.c src/plc1_thread14.h src/plc_thread.h \
- src/model.h src/plc_thread_config.h
+ src/model.h util/log.h util/array.h util/endian.h util/snap7.h \
+ src/plc_thread_config.h
 .cache/plc1_thread15.o: src/plc1_thread15.c src/plc1_thread15.h src/plc_thread.h \
- src/model.h src/plc_thread_config.h
+ src/model.h util/log.h util/array.h util/endian.h util/snap7.h \
+ src/plc_thread_config.h
 .cache/plc1_thread16.o: src/plc1_thread16.c src/plc1_thread16.h src/plc_thread.h \
- src/model.h src/plc_thread_config.h
+ src/model.h util/log.h util/array.h util/endian.h util/snap7.h \
+ src/plc_thread_config.h
 .cache/plc1_thread3.o: src/plc1_thread3.c src/plc1_thread3.h src/plc_thread.h \
- src/model.h src/plc_thread_config.h
+ src/model.h util/log.h util/array.h util/endian.h util/snap7.h \
+ src/plc_thread_config.h
 .cache/plc1_thread4.o: src/plc1_thread4.c src/plc1_thread4.h src/plc_thread.h \
- src/model.h src/plc_thread_config.h
+ src/model.h util/log.h util/array.h util/endian.h util/snap7.h \
+ src/plc_thread_config.h
 .cache/plc1_thread5.o: src/plc1_thread5.c src/plc1_thread5.h src/plc_thread.h \
- src/model.h src/plc_thread_config.h
+ src/model.h util/log.h util/array.h util/endian.h util/snap7.h \
+ src/plc_thread_config.h
 .cache/plc1_thread6.o: src/plc1_thread6.c src/plc1_thread6.h src/plc_thread.h \
- src/model.h src/plc_thread_config.h
+ src/model.h util/log.h util/array.h util/endian.h util/snap7.h \
+ src/plc_thread_config.h
 .cache/plc1_thread7.o: src/plc1_thread7.c src/plc1_thread7.h src/plc_thread.h \
- src/model.h src/plc_thread_config.h
+ src/model.h util/log.h util/array.h util/endian.h util/snap7.h \
+ src/plc_thread_config.h
 .cache/plc1_thread8.o: src/plc1_thread8.c src/plc1_thread8.h src/plc_thread.h \
- src/model.h src/plc_thread_config.h
+ src/model.h util/log.h util/array.h util/endian.h util/snap7.h \
+ src/plc_thread_config.h
 .cache/plc1_thread9.o: src/plc1_thread9.c src/plc1_thread9.h src/plc_thread.h \
- src/model.h src/plc_thread_config.h
+ src/model.h util/log.h util/array.h util/endian.h util/snap7.h \
+ src/plc_thread_config.h
 .cache/plc2_thread3.o: src/plc2_thread3.c src/plc2_thread3.h src/plc_thread.h \
- src/model.h src/plc_thread_config.h
+ src/model.h util/log.h util/array.h util/endian.h util/snap7.h \
+ src/plc_thread_config.h
 .cache/plc2_thread4.o: src/plc2_thread4.c src/plc2_thread4.h src/plc_thread.h \
- src/model.h src/plc_thread_config.h
+ src/model.h util/log.h util/array.h util/endian.h util/snap7.h \
+ src/plc_thread_config.h
 .cache/plc2_thread5.o: src/plc2_thread5.c src/plc2_thread5.h src/plc_thread.h \
- src/model.h src/plc_thread_config.h
+ src/model.h util/log.h util/array.h util/endian.h util/snap7.h \
+ src/plc_thread_config.h
 .cache/plc2_thread6.o: src/plc2_thread6.c src/plc2_thread6.h src/plc_thread.h \
- src/model.h src/plc_thread_config.h
+ src/model.h util/log.h util/array.h util/endian.h util/snap7.h \
+ src/plc_thread_config.h
 .cache/plc2_thread7.o: src/plc2_thread7.c src/plc2_thread7.h src/plc_thread.h \
- src/model.h src/plc_thread_config.h
+ src/model.h util/log.h util/array.h util/endian.h util/snap7.h \
+ src/plc_thread_config.h
 .cache/plc2_thread8.o: src/plc2_thread8.c src/plc2_thread8.h src/plc_thread.h \
- src/model.h src/plc_thread_config.h
+ src/model.h util/log.h util/array.h util/endian.h util/snap7.h \
+ src/plc_thread_config.h
 .cache/plc2_thread9.o: src/plc2_thread9.c src/plc2_thread9.h src/plc_thread.h \
- src/model.h src/plc_thread_config.h
+ src/model.h util/log.h util/array.h util/endian.h util/snap7.h \
+ src/plc_thread_config.h
 .cache/ui.o: src/ui.c src/ui.h
-.cache/view.o: src/view.c src/view.h src/ui.h src/model.h src/login.h \
- src/controller.h
+.cache/view.o: src/view.c src/view.h src/ui.h src/model.h util/log.h \
+ util/array.h src/login.h src/controller.h
 .cache/array.o: util/array.c util/array.h
 .cache/endian.o: util/endian.c util/endian.h
 .cache/log.o: util/log.c util/log.h
+.cache/util.o: util/util.c util/util.h

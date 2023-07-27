@@ -64,6 +64,9 @@
 # endif
 #endif
 
+
+#include <stdbool.h>
+
 //---------------------------------------------------------------------------
 // C++ Library
 //---------------------------------------------------------------------------
@@ -164,11 +167,6 @@ typedef struct
   int   tm_isdst;
 }tm;
 
-#ifndef bool
-typedef int bool;
-#define false 0;
-#define true  1;
-#endif
 #endif
 
 #define errLibInvalidParam  = -1;

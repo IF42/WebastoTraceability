@@ -1,6 +1,10 @@
 #include "ui.h"
 
 
+#define O_Ui_Just(T)(O_Ui){true, T}
+#define O_Ui_Nothing (O_Ui){.is_value=false}
+
+
 O_Ui 
 ui_build(char * glade)
 {

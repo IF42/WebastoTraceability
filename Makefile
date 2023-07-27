@@ -1,6 +1,14 @@
 CC=gcc
 CFLAGS=-Wall -Wextra -pedantic -g -std=c2x -Ofast $$(pkg-config --cflags gtk+-3.0 sqlite3) -I/usr/include/ -Iutil
-LIBS=$$(pkg-config --libs gtk+-3.0 sqlite3) -lcrypto -L. -lsnap7 -L/usr/lib/ -lpthread 
+LIBS=$$(pkg-config --libs gtk+-3.0 sqlite3) -lcrypto -L. -lsnap7 -L/mingw64/lib -lpthread 
+
+UNAME := $(shell uname)
+
+ifeq ($(UNAME), Linux)
+else
+	LIBS+=-L/mingw64/lib
+endif
+
 
 TARGET=traceability
 CACHE=.cache
@@ -44,6 +52,7 @@ MODULES += login.o
 MODULES += endian.o
 MODULES += array.o
 MODULES += log.o
+MODULES += util.o
 
 TEST += test.o
 
@@ -71,7 +80,7 @@ exec: all
 
 
 dep:
-	$(CC) -MM  app/*.c src/*.c util/*.c | sed 's|[a-zA-Z0-9_-]*\.o|$(CACHE)/&|' > dep.list
+	$(CC) -Iutil -MM  app/*.c src/*.c util/*.c | sed 's|[a-zA-Z0-9_-]*\.o|$(CACHE)/&|' > dep.list
 
 
 env:
