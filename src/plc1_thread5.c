@@ -83,7 +83,8 @@ step_wait(PLC1_Thread5 * self)
 
     TableContent * record = 
         model_get_table_content(
-            self->super.model
+            self->super.model   
+            , 0
             , frame.table.array
             , "PA30R_rework"
             , "frame_code"

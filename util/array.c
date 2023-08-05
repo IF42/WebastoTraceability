@@ -51,7 +51,8 @@ array_init(
 void
 array_delete(Array * array)
 {
-    array->delete(array);
+    if(array != NULL)
+        array->delete(array);
 }
 
 

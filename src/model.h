@@ -56,6 +56,7 @@ model_get_table_columns(
 TableContent *
 model_get_table_content(
     Model * self
+    , size_t limit
     , char * table
     , char * columns
     , char * key
@@ -194,6 +195,15 @@ bool
 model_update_bottle_shake_time(
     Model * self
     , char * batch_code);
+
+
+bool
+model_delete_record(
+    Model * self
+    , char * table
+    , size_t length
+    , const char ** columns
+    , const char ** values);
 
 
 void

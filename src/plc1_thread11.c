@@ -51,6 +51,7 @@ typedef struct
 {
     PLC_String table;
     PLC_String frame_code;
+    PLC_String path;
     int16_t temperature;
     int16_t humidity;
 }Frame;
@@ -77,10 +78,11 @@ step_wait(PLC1_Thread11 * self)
 
     frame.table.array[frame.table.length]           = '\0';
     frame.frame_code.array[frame.frame_code.length] = '\0';
+    frame.path.array[frame.path.length]             = '\0';
 
     if(model_generate_frame_csv(
         self->super.model
-        , "."
+        , frame.path.array
         , frame.table.array
         , frame.frame_code.array
         , ((float)frame.temperature)/10.0

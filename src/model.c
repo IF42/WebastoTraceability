@@ -25,7 +25,7 @@ model_init(void)
   
     if(rc != SQLITE_OK)
     {
-        log_error(self->log, "SQLITE open error: %d", rc, sqlite3_errmsg(self->db));
+        log_error(self->log, "SQLITE open error: (%d) %s", rc, sqlite3_errmsg(self->db));
         model_delete(self);
 
         return NULL;
@@ -40,13 +40,13 @@ model_init(void)
 static void
 table_content_delete(TableContent * self)
 {
-    if(self != NULL)
-    {
-        for(size_t i = 0; i < self->super.size; i++)
-            array_delete(ARRAY(self->array[i]));
+    if(self == NULL)
+        return;
+    
+    for(size_t i = 0; i < self->super.size; i++)
+        array_delete(ARRAY(self->array[i]));
 
-        free(self);
-    }
+    free(self);
 }
 
 static void
@@ -54,7 +54,7 @@ array_string_delete(ArrayString * self)
 {
     if(self == NULL) 
         return;
-
+    
     for(size_t i = 0; i < self->super.size; i ++)
     {
         if(self->array[i] != NULL)
@@ -88,6 +88,7 @@ model_db_read(
         sqlite3_finalize(res);
         log_error(self->log, "SQLITE read table error: (%d) %s", rc, sqlite3_errmsg(self->db));
 
+        printf("%s\n", sql_query);
         pthread_mutex_unlock(&self->mutex);
 
         return NULL;
@@ -110,7 +111,7 @@ model_db_read(
                                 sizeof(char*)
                                 , 0
                                 , (void(*)(void*)) array_string_delete);
-    
+
         char * string;
 
         for(size_t j = 0; (string = (char*) sqlite3_column_text(res, j)) != NULL; j++)
@@ -119,6 +120,7 @@ model_db_read(
                 (ArrayString*) array_resize(
                                     ARRAY(db_table_content->array[i])
                                     , j+1);
+
             db_table_content->array[i]->array[j] = strdup(string);
         }
     } 
@@ -136,19 +138,26 @@ model_db_write(
     , ...)
 {
     va_list args;
-    char sql_query[512];
+    char sql_query[1024];
     bool result = false;
 
     va_start(args, query_format);
-    vsnprintf(sql_query, 511, query_format, args);
+    vsnprintf(sql_query, 1023, query_format, args);
     va_end(args);
-    
+ 
     pthread_mutex_lock(&self->mutex);
 
     int rc = sqlite3_exec(self->db, sql_query, 0, 0,  NULL);
     
+    printf("%s\n", sql_query);
+    fflush(stdout);
+
     if (rc == SQLITE_OK)
         result = true;
+    else
+    {
+        log_error(self->log, "SQLITE write error: (%d) %s", rc, sqlite3_errmsg(self->db));
+    }
 
     pthread_mutex_unlock(&self->mutex);
 
@@ -168,29 +177,103 @@ model_get_table_list(Model * self)
 TableContent * 
 model_get_table_content(
     Model * self
+    , size_t limit
     , char * table
     , char * columns
     , char * key
     , char * value)
 {
-    if(key == NULL || value == NULL)
+    if(key == NULL 
+        || value == NULL 
+        || (value != NULL && strcmp(value, "") == 0) 
+        || (key != NULL && strcmp(key, "") == 0))
     {
-        return model_db_read(
-                    self
-                    , "SELECT %s FROM '%s' LIMIT 4000;"
-                    , columns
-                    , table);
+        if(limit == 0)
+        {
+            return model_db_read(
+                        self
+                        , "SELECT %s FROM '%s' ORDER BY rowid DESC;"
+                        , columns
+                        , table);
+        }
+        else
+        {
+            return model_db_read(
+                        self
+                        , "SELECT %s FROM '%s' ORDER BY rowid DESC LIMIT %ld;"
+                        , columns
+                        , table
+                        , limit);
+        }
     }
     else
     {
-        return model_db_read(
-                    self
-                    , "SELECT %s FROM %s WHERE %s LIKE '%s' LIMIT 4000;"
-                    , columns
-                    , table
-                    , key
-                    , value);
+        if(limit == 0)
+        {
+            return model_db_read(
+                        self
+                        , "SELECT %s FROM %s WHERE %s LIKE '%s' ORDER BY rowid DESC;"
+                        , columns
+                        , table
+                        , key
+                        , value);
+        }
+        else
+        {
+            return model_db_read(
+                        self
+                        , "SELECT %s FROM %s WHERE %s LIKE '%s' ORDER BY rowid DESC LIMIT %ld;"
+                        , columns
+                        , table
+                        , key
+                        , value
+                        , limit);
+        }
     }
+}
+
+
+bool
+model_delete_record(
+    Model * self
+    , char * table
+    , size_t length
+    , const char ** columns
+    , const char ** values)
+{
+    char sql_query[2048];
+    bool result = true;
+    
+    sprintf(sql_query, "DELETE FROM %s WHERE ", table);
+    
+    for(size_t i = 0; i < length; i++)
+    {
+        if(i > 0)
+            strcat(sql_query, " AND ");
+
+        strcat(sql_query, columns[i]);
+        strcat(sql_query, "='");
+        strcat(sql_query, values[i]);
+        strcat(sql_query, "'");
+    }
+
+    strcat(sql_query, ";");
+
+    pthread_mutex_lock(&self->mutex);
+
+    int rc = sqlite3_exec(self->db, sql_query, 0, 0,  NULL);
+
+    printf("%s\n", sql_query);
+
+    if (rc != SQLITE_OK)
+    {
+        log_error(self->log, "SQLITE delete record exception: (%d) %s", rc, sqlite3_errmsg(self->db));
+        result = false;
+    }
+
+    pthread_mutex_unlock(&self->mutex);
+
+    return result;
 }
 
 
@@ -289,13 +372,15 @@ model_write_new_frame(
     time_t t = time(NULL);
     struct tm tm = *localtime(&t);
 
+    printf("order: %d\n", order);
+
     return model_db_write(
             self
             , "INSERT INTO %s "
               "(ID, frame_code, frame_order, PA30R_date_time, PA30R_Primer_207_SIKA, PA30R_Remover_208_SIKA, PA30R_rework)"
-              " VALUES ('172%s', '%s', '%d', '%02d.%02d.%d*%02d:%02d', '%s', '%s', '0')';" 
-            , order
+              " VALUES ('172%08d', '%s', '%08d', '%02d.%02d.%d*%02d:%02d', '%s', '%s', '0');" 
             , table
+            , order
             , frame_code
             , order
             , tm.tm_mday, tm.tm_mon + 1, tm.tm_year + 1900, tm.tm_hour, tm.tm_min
@@ -409,7 +494,6 @@ model_pa30b_update_frame(
 }
 
 
-
 bool
 model_generate_frame_csv(
     Model * self
@@ -440,7 +524,10 @@ model_generate_frame_csv(
             , frame_code);
 
     if(content == NULL || content->super.size == 0)
+    {
+        log_error(self->log, "NULL pointer record for csv %s:%s",table, frame_code);  
         return false;
+    }
 
     if(strcmp(table, "frame_582") == 0)
 		sscanf(content->array[0]->array[9], "%hhd.%hhd.%hd %hhd:%hhd", &mon, &day, &year, &hour, &min);
@@ -472,6 +559,7 @@ model_generate_frame_csv(
 
     if(f == NULL)
     {
+        log_error(self->log, "Can't open file for write csv:  %s", file_name);
         array_delete(ARRAY(content));
         return false;
     }

@@ -75,7 +75,7 @@ step_wait(PLC1_Thread7 * self)
 
     if(Cli_DBRead(self->super.client, PLC1_THREAD7_DB_INDEX, 4, sizeof(Frame), &frame) != 0)
         return ThreadResult(.is_error = true);
-
+    
     frame.table.array[frame.table.length] = '\0';
     frame.frame_code.array[frame.frame_code.length] = '\0';
     frame.primer_207_sika.array[frame.primer_207_sika.length] = '\0';
@@ -85,7 +85,7 @@ step_wait(PLC1_Thread7 * self)
         self->super.model
         , frame.table.array
         , frame.frame_code.array
-        , frame.order
+        , swap_endian(frame.order)
         , frame.primer_207_sika.array
         , frame.remover_208_sika.array) == true)
     {

@@ -28,8 +28,9 @@ typedef struct
     uint8_t execute:1;
 }Execute;
 
+typedef struct Result Result;
 
-typedef struct 
+struct Result
 {
     uint8_t DONE:1;
     uint8_t ERROR:1;
@@ -37,7 +38,9 @@ typedef struct
     uint8_t unreachable;
     DTL PA30R_PROCESS_DATE_TIME;
     PLC_String order;
-}Result;
+}__attribute__((packed, aligned(1)));
+
+
 
 
 typedef struct 
@@ -50,7 +53,6 @@ typedef struct
     DTL pa30r_process_date_time;
     PLC_String order;
 }PLC2_Thread4;
-
 
 #define PLC2_Thread4(...)(PLC2_Thread4) {__VA_ARGS__}
 
@@ -66,7 +68,7 @@ step_wait(PLC2_Thread4 * self)
     TableContent * record;
 
     if(Cli_DBWrite(self->super.client, PLC2_THREAD4_DB_INDEX, 0, sizeof(Result), &result) != 0
-        || Cli_DBRead(self->super.client, PLC2_THREAD4_DB_INDEX, 14, sizeof(Execute), &execute) != 0)
+        || Cli_DBRead(self->super.client, PLC2_THREAD4_DB_INDEX, 270, sizeof(Execute), &execute) != 0)
     {
         return ThreadResult(.is_error = true);
     }
@@ -74,7 +76,7 @@ step_wait(PLC2_Thread4 * self)
     if(execute.execute == false)
         return ThreadResult(.step = WAIT);
 
-    if(Cli_DBRead(self->super.client, PLC2_THREAD4_DB_INDEX, 16, sizeof(PLC_String), &frame_code) != 0)
+    if(Cli_DBRead(self->super.client, PLC2_THREAD4_DB_INDEX, 272, sizeof(PLC_String), &frame_code) != 0)
         return ThreadResult(.is_error = true);
 
     frame_code.array[frame_code.length] = '\0';
@@ -87,21 +89,34 @@ step_wait(PLC2_Thread4 * self)
         sscanf(
             record->array[0]->array[0]
             , "%hhd.%hhd.%hd*%hhd:%hhd"
-            , (signed char*) &self->pa30r_process_date_time.day
-            , (signed char*) &self->pa30r_process_date_time.month
-            , (short int*) &self->pa30r_process_date_time.year
-            , (signed char*) &self->pa30r_process_date_time.hour
-            , (signed char*)&self->pa30r_process_date_time.minute);
+            , (int8_t*) &self->pa30r_process_date_time.day
+            , (int8_t*) &self->pa30r_process_date_time.month
+            , (short int *) &self->pa30r_process_date_time.year
+            , (int8_t*) &self->pa30r_process_date_time.hour
+            , (int8_t*) &self->pa30r_process_date_time.minute);
 
+        printf("%d.%d.%d %d:%d\n "
+            , self->pa30r_process_date_time.day
+            , self->pa30r_process_date_time.month
+            , self->pa30r_process_date_time.year
+            , self->pa30r_process_date_time.hour
+            , self->pa30r_process_date_time.minute);
         self->pa30r_process_date_time.year = swap_endian(self->pa30r_process_date_time.year);
+        self->pa30r_process_date_time.nanosecond = 0;
+        self->pa30r_process_date_time.second = 0;
 
         if(strcmp(record->array[0]->array[1], "*") != 0)
             self->pa60r_processed = true;
         else
             self->pa60r_processed = false;
 
-        strcpy(self->order.array, record->array[0]->array[2]);
-        self->order.length = strlen(record->array[0]->array[2]);
+        size_t length = strlen(record->array[0]->array[2]);
+
+        if(length >= 254)
+            length = 254;
+
+        memcpy(self->order.array, record->array[0]->array[2], length);
+        self->order.length = length;
         self->order.size = 254;
 
         array_delete(ARRAY(record));
@@ -129,10 +144,10 @@ step_finish(PLC2_Thread4 * self)
             , .PA30R_PROCESS_DATE_TIME = self->pa30r_process_date_time
             , .order                   = self->order
         };
-    Execute execute;
- 
+    Execute execute; 
+
     if(Cli_DBWrite(self->super.client, PLC2_THREAD4_DB_INDEX, 0, sizeof(Result), &result) != 0
-        || Cli_DBRead(self->super.client, PLC2_THREAD4_DB_INDEX, 14, sizeof(execute), &execute) != 0)
+        || Cli_DBRead(self->super.client, PLC2_THREAD4_DB_INDEX, 270, sizeof(execute), &execute) != 0)
     {
         return ThreadResult(.is_error = true);
     }
@@ -155,7 +170,7 @@ step_error(PLC2_Thread4 * self)
         };
     
     if(Cli_DBWrite(self->super.client, PLC2_THREAD4_DB_INDEX, 0, sizeof(Result), &result) != 0
-        || Cli_DBRead(self->super.client, PLC2_THREAD4_DB_INDEX, 14, sizeof(execute), &execute) != 0)
+        || Cli_DBRead(self->super.client, PLC2_THREAD4_DB_INDEX, 270, sizeof(execute), &execute) != 0)
     {
         return ThreadResult(.is_error = true);
     }

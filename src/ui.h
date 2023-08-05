@@ -13,14 +13,10 @@ typedef struct
     GtkWidget * entry_user_name;
     GtkWidget * entry_password;
     GtkWidget * btn_login;
-    GtkWidget * lbl_change_password;
-
-    GtkWidget * entry_old_password;
-    GtkWidget * entry_new_password;
-    GtkWidget * btn_change_password;
 
     GtkWidget * progress_timeout_logout;
     GtkWidget * btn_logout;
+    GtkWidget * btn_export;   
 
     GtkWidget * combo_table;
     GtkWidget * combo_column;

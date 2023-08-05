@@ -80,19 +80,18 @@ system_login(
 {
     FILE * f = fopen(ACCOUNT_FILE, "r");
 
-    if(f == NULL) return false;
+    if(f == NULL) 
+        return false;
 
     Authentication * authentication = load_authentication(f);
 
     fclose(f);
 
-    if(authentication == NULL) return false;
-
-
-            
+    if(authentication == NULL) 
+        return false;
+    
     for(size_t i = 0; i < authentication->super.size; i++)
     {
-        
         if(strcmp(username, authentication->array[i].username) == 0)
         {
             char digest[SHA256_DIGEST_LENGTH] = {0};
@@ -108,8 +107,7 @@ system_login(
                 array_delete(ARRAY(authentication));
                 return true;
             }
-        }
-        
+        }        
     }
     
     array_delete(ARRAY(authentication));

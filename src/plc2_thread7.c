@@ -58,6 +58,7 @@ struct Frame
 {
     PLC_String table;
     PLC_String frame_code;
+    PLC_String PATH;
     int16_t temperature;
     int16_t humidity;
 }__attribute__((packed, aligned(1)));
@@ -84,13 +85,14 @@ step_wait(PLC2_Thread7 * self)
 
     frame.table.array[frame.table.length]           = '\0';
     frame.frame_code.array[frame.frame_code.length] = '\0';
+    frame.PATH.array[frame.PATH.length] = '\0';
 
     frame.temperature = swap_endian(frame.temperature);
     frame.humidity    = swap_endian(frame.humidity);
 
     if(model_generate_frame_csv(
         self->super.model
-        , self->csv_path
+        , frame.PATH.array
         , frame.table.array
         , frame.frame_code.array
         , ((float)frame.temperature)/10.0

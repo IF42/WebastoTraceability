@@ -6,6 +6,7 @@ UNAME := $(shell uname)
 
 ifeq ($(UNAME), Linux)
 else
+	CFLAGS+=-mwindows
 	LIBS+=-L/mingw64/lib
 endif
 

@@ -97,6 +97,7 @@ step_wait(PLC2_Thread5 * self)
 
         self->PA10B_PROCESS_TIME.year       = swap_endian(self->PA10B_PROCESS_TIME.year);
         self->PA10B_PROCESS_TIME.nanosecond = 0;
+        self->PA10B_PROCESS_TIME.second     = 0;
 
         if(strcmp(record->array[0]->array[2], "YES") == 0)
             self->USED = true;

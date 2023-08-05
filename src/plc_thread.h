@@ -33,7 +33,7 @@ typedef struct DTL DTL;
 
 #define DTL_DEFAULT (DTL)                        \
     {                                            \
-        .year = swap_endian((uint16_t)1970)      \
+        .year = swap_endian((uint16_t) 1970)     \
         , .month = 1                             \
         , .day = 1                               \
         , .weekday = 5                           \

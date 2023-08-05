@@ -10,6 +10,7 @@
 #include <stdlib.h>
 
 
+#define TREE_VIEW_SIZE_LIMIT ((size_t) 2000)
 #define LOGOUT_INTERVAL 60*10 //seconds
 
 
@@ -66,8 +67,8 @@ view_login(View * self)
     {
         log_warning(
             self->model->log
-            , "Unsuccessful attempt to login [%s, %s]"
-            , username, password);
+            , "Unsuccessful attempt to login [%s]"
+            , username);
     }
 
     gtk_entry_set_text(GTK_ENTRY(self->ui.entry_password), "");
@@ -208,20 +209,23 @@ view_combo_table_changed_callback (
             GTK_TREE_VIEW(view->ui.db_table_view)
             , GTK_TREE_MODEL(table_view_model));
         gtk_combo_box_set_active(GTK_COMBO_BOX(view->ui.combo_column), 0);
-   
+ 
         TableContent * db_table_content = 
             model_get_table_content(
                 view->model
+                , TREE_VIEW_SIZE_LIMIT
                 , gtk_combo_box_text_get_active_text(GTK_COMBO_BOX_TEXT(widget))
                 , "*"
                 , NULL
                 , NULL);
 
-        if(db_table_content != NULL)
-        {
-            view_fill_db_table_view (table_view_model, db_table_content);
-            array_delete(ARRAY(db_table_content));
-        }
+        if(db_table_content == NULL || db_table_content->super.size == 0)
+            gtk_widget_set_sensitive (view->ui.btn_export, false);
+        else
+            gtk_widget_set_sensitive (view->ui.btn_export, true);
+
+        view_fill_db_table_view (table_view_model, db_table_content);
+        array_delete(ARRAY(db_table_content));
     }
 
     gtk_entry_set_text(GTK_ENTRY(view->ui.entry_key), "");
@@ -296,6 +300,7 @@ view_btn_filter_click_callback(GtkWidget * widget, View * view)
         TableContent * db_table_content = 
             model_get_table_content(
                 view->model 
+                , TREE_VIEW_SIZE_LIMIT
                 , gtk_combo_box_text_get_active_text(GTK_COMBO_BOX_TEXT(view->ui.combo_table))
                 , "*"
                 , gtk_combo_box_text_get_active_text(GTK_COMBO_BOX_TEXT(view->ui.combo_column))
@@ -303,12 +308,145 @@ view_btn_filter_click_callback(GtkWidget * widget, View * view)
 
         array_delete(ARRAY(column_list));
 
-        if(db_table_content != NULL)
-        {
-            view_fill_db_table_view (table_view_model, db_table_content);
-            array_delete(ARRAY(db_table_content));
-        }
+        if(db_table_content == NULL || db_table_content->super.size == 0)
+            gtk_widget_set_sensitive (view->ui.btn_export, false);
+        else
+            gtk_widget_set_sensitive (view->ui.btn_export, true);
+
+        view_fill_db_table_view (table_view_model, db_table_content);
+        array_delete(ARRAY(db_table_content));
     }
+}
+
+
+#if defined(__linux__)
+#include <pwd.h>
+#endif
+
+static void
+view_btn_export_click_callback(
+    GtkWidget * widget
+    , View * view)
+{
+    (void) widget;
+
+    /*
+    ** preparing of file choose dialog for entry required csv name
+    */
+    GtkFileChooserAction action = GTK_FILE_CHOOSER_ACTION_SAVE;
+
+    GtkWidget * dialog = 
+        gtk_file_chooser_dialog_new (
+            "Export as csv"
+              , GTK_WINDOW(view->ui.window)
+              , action
+              , "_Cancel"
+              , GTK_RESPONSE_CANCEL
+              , "_Save"
+              , GTK_RESPONSE_ACCEPT
+              , NULL);
+
+    /*
+    ** setup parametr of file choose dialog to save only as .csv file extension and
+    ** with default file name and to default directory path based on running system
+    */
+    GtkFileChooser * chooser = GTK_FILE_CHOOSER (dialog);
+    GtkFileFilter * filter   = gtk_file_filter_new();
+    gtk_file_filter_add_pattern(filter, "*.csv");
+    
+    gtk_file_chooser_set_filter(chooser, filter);
+    gtk_file_chooser_set_do_overwrite_confirmation(chooser, true);
+    gtk_file_chooser_set_current_name(chooser, "export.csv");
+
+#if defined(__linux__)
+    char * homedir = getenv("HOME");
+
+    if(homedir == NULL)
+        homedir = "/";
+
+    gtk_file_chooser_set_current_folder(chooser, homedir);
+#else
+    gtk_file_chooser_set_current_folder(chooser, "C:/");
+#endif
+
+    gtk_widget_show_all(dialog);
+
+    int res = gtk_dialog_run (GTK_DIALOG (dialog));
+
+    /*
+    ** generation of csv content 
+    */
+    if (res == GTK_RESPONSE_ACCEPT)
+    {
+        char * filename;
+
+        filename = gtk_file_chooser_get_filename (chooser);
+
+        /* TODO: export */
+
+        FILE * f = fopen(filename, "w");
+
+        if(f != NULL)
+        {
+            TableContent * column_list = 
+                model_get_table_columns(
+                    view->model
+                    , gtk_combo_box_text_get_active_text(GTK_COMBO_BOX_TEXT(view->ui.combo_table)));
+
+            if(column_list != NULL)
+            {
+                for(size_t i = 0; i < column_list->super.size; i++)
+                    fprintf(f, i == 0 ? "%s" : ", %s", column_list->array[i]->array[1]);
+            }
+
+            TableContent * db_table_content = 
+                model_get_table_content(
+                    view->model 
+                    , 0
+                    , gtk_combo_box_text_get_active_text(GTK_COMBO_BOX_TEXT(view->ui.combo_table))
+                    , "*"
+                    , gtk_combo_box_text_get_active_text(GTK_COMBO_BOX_TEXT(view->ui.combo_column))
+                    , (char*) gtk_entry_get_text(GTK_ENTRY(view->ui.entry_key)));
+
+            if(db_table_content != NULL)
+            {
+                for(size_t i = 0; i < db_table_content->super.size; i++)
+                {
+                    if(db_table_content->array[i] == NULL)
+                        continue;
+
+                    for(size_t j = 0; j < db_table_content->array[i]->super.size; j++)
+                        fprintf(f, j == 0 ? "\n%s" : ", %s", db_table_content->array[i]->array[j]);
+                }
+            }
+
+            array_delete(ARRAY(column_list));
+            array_delete(ARRAY(db_table_content));
+
+            fclose(f);
+        }
+        else
+        {
+            /*
+            ** error dialog if it is not possioble to open file for writing
+            */
+            GtkWidget * error_dialog = 
+                gtk_message_dialog_new (
+                      GTK_WINDOW(view->ui.window)
+                      , 0
+                      , GTK_MESSAGE_ERROR
+                      , GTK_BUTTONS_OK
+                      , "Error save file: %s"
+                      , filename);
+
+            gtk_dialog_run (GTK_DIALOG (error_dialog));
+            gtk_widget_destroy(error_dialog);
+        }
+
+        g_free (filename);
+    }
+
+    gtk_widget_destroy (dialog);
 }
 
 
@@ -327,17 +465,10 @@ view_cyclic_interupt_callback(gpointer param)
             GTK_PROGRESS_BAR (self->ui.progress_timeout_logout)
             , ((float)self->model->logout_timer)/((float)LOGOUT_INTERVAL));
 
-    #ifdef __linux__
         sprintf(
             str_timeout
             , "%02ld:%02ld"
             , self->model->logout_timer / 60, self->model->logout_timer % 60);
-    #elif defined(WIN32) || defined(WIN64)
-        sprintf(
-            str_timeout
-            , "%02lld:%02lld"
-            , self->model->logout_timer / 60, self->model->logout_timer % 60);
-    #endif 
 
         gtk_progress_bar_set_text(
             GTK_PROGRESS_BAR(self->ui.progress_timeout_logout)
@@ -396,9 +527,7 @@ draw_graph(
     cairo_move_to(cr, 50, 50);
 
     for (int i = 0; i < 5; i++) 
-    {
         cairo_line_to(cr, 50 + i * 50, 50 + data[i].humidity);
-    }
 
     cairo_stroke(cr);
 }
@@ -423,17 +552,105 @@ view_environment_chart_draw_callback(
 
 
 static void
+view_delete_record(View * self)
+{
+    GtkTreeView * tree_view      = GTK_TREE_VIEW(self->ui.db_table_view);
+    GtkTreeSelection * selection = gtk_tree_view_get_selection(tree_view);
+    GtkTreeModel * model;
+    GtkTreeIter iter;
+
+    if (gtk_tree_selection_get_selected(selection, &model, &iter))
+    {
+        /*
+        ** confirmation dialog for record delete  
+        */
+        GtkWidget * error_dialog = 
+            gtk_message_dialog_new (
+                  GTK_WINDOW(self->ui.window)
+                  , 0
+                  , GTK_MESSAGE_QUESTION
+                  , GTK_BUTTONS_OK_CANCEL
+                  , "Delete record?");
+
+        int res = gtk_dialog_run (GTK_DIALOG (error_dialog));
+        
+        /*
+        ** delete given record if ansvare is OK
+        */
+        if(res == GTK_RESPONSE_OK)
+        {
+            //TODO: remove from DB
+            GtkTreeViewColumn *column;
+            size_t  num_columns  = gtk_tree_view_get_n_columns(tree_view);
+            const char ** columns_list = malloc(sizeof(char*) * num_columns);
+            const char ** values_list = malloc(sizeof(char *) * num_columns);
+
+            for (size_t i = 0; i < num_columns; i++) 
+            {
+                gchar * value;
+                column = gtk_tree_view_get_column(tree_view, i);
+                const gchar *column_name = gtk_tree_view_column_get_title(column);
+                columns_list[i] = column_name;
+                gtk_tree_model_get(model, &iter, i, &value, -1);
+                values_list[i] = value;
+            }
+
+            model_delete_record(
+                self->model
+                , gtk_combo_box_text_get_active_text(GTK_COMBO_BOX_TEXT(self->ui.combo_table))
+                , num_columns
+                , columns_list
+                , values_list);
+
+            for(size_t i = 0; i < num_columns; i++)
+                g_free((void*) values_list[i]);
+
+            free(columns_list);
+            free(values_list);
+
+            
+
+            gtk_list_store_remove(GTK_LIST_STORE(model), &iter);
+        }
+
+        gtk_widget_destroy(error_dialog);
+    }
+}
+
+
+static gboolean 
+view_db_table_view_on_key_press_callback(
+    GtkWidget * widget
+    , GdkEventKey * event
+    , View * view) 
+{
+    (void) widget;
+
+    /*
+    ** if pressed key is DELETE run relete record action
+    */
+    if (event->keyval == GDK_KEY_Delete) 
+        view_delete_record(view);
+
+    return false;
+}
+
+
+static void
 signals(View * self)
 {
     g_signal_connect(self->ui.btn_login, "clicked", G_CALLBACK(view_btn_login_clicked_callback), self);
     g_signal_connect(self->ui.btn_logout, "clicked", G_CALLBACK(view_btn_logout_clicked_callback), self);
     g_signal_connect(self->ui.combo_table, "changed", G_CALLBACK(view_combo_table_changed_callback), self);
     g_signal_connect(self->ui.btn_filter, "clicked", G_CALLBACK(view_btn_filter_click_callback), self);
+    g_signal_connect(self->ui.btn_export, "clicked", G_CALLBACK(view_btn_export_click_callback), self);
     g_signal_connect(self->ui.combo_column, "changed", G_CALLBACK(view_combo_column_changed_callback), self);
     g_signal_connect(self->ui.environment_chart, "draw", G_CALLBACK(view_environment_chart_draw_callback), self);
 
     g_signal_connect(self->ui.entry_user_name, "activate", G_CALLBACK(view_entry_username_activate_callback), self);
     g_signal_connect(self->ui.entry_password, "activate", G_CALLBACK(view_entry_password_activate_callback), self);
+
+    g_signal_connect(self->ui.db_table_view, "key-press-event", G_CALLBACK(view_db_table_view_on_key_press_callback), self);
 }
 
 
