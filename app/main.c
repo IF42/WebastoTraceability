@@ -1,12 +1,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <gtk/gtk.h>
-//#include <version.h>
 
 #include "../src/view.h"
 
 
-//static const Version version = Version(0, 6, 0);
+static char * __version__  = "1.0.0";
+static char * __progname__ = "WebastoTraceability";
 
 
 int
@@ -16,7 +16,7 @@ main(int argc, char ** argv)
 
     if(argc > 1 && strcmp(argv[1], "--version") == 0)
     {
-        //version_show(stdout, version);
+        printf("%s - %s\n", __progname__, __version__);
         return EXIT_SUCCESS;
     }
 
