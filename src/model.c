@@ -530,9 +530,13 @@ model_generate_frame_csv(
     }
 
     if(strcmp(table, "frame_582") == 0)
-		sscanf(content->array[0]->array[9], "%hhd.%hhd.%hd %hhd:%hhd", &mon, &day, &year, &hour, &min);
+    {
+		sscanf(content->array[0]->array[9], "%hhd.%hhd.%hd*%hhd:%hhd", &day, &mon, &year, &hour, &min);
+        printf("%s\n", content->array[0]->array[9]);
+    }
 	else
-		sscanf(content->array[0]->array[4], "%hhd.%hhd.%hd %hhd:%hhd", &mon, &day, &year, &hour, &min);
+		sscanf(content->array[0]->array[4], "%hhd.%hhd.%hd*%hhd:%hhd", &day, &mon, &year, &hour, &min);
+
 
      sscanf(
         content->array[0]->array[5]
