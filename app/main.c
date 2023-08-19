@@ -5,7 +5,7 @@
 #include "../src/view.h"
 
 
-static char * __version__  = "1.0.0";
+static char * __version__  = "1.0.2";
 static char * __progname__ = "WebastoTraceability";
 
 

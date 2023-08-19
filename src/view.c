@@ -676,30 +676,31 @@ view_set_table_list(View * self)
 void
 view(GtkApplication * app)
 {
-    O_Ui t  = ui_build("ui/ui.glade");
-    Model * model = model_init();      
-    Controller * controller = controller_init(model);
+    O_Ui t;  
+    Model * model;
+    Controller * controller;
 
-    if(t.is_value == true 
-        && model != NULL
-        && controller != NULL)
-    {
-        int cyclic_interrupt_id = g_timeout_add(1000, view_cyclic_interupt_callback, &v);
+    if((model = model_init()) == NULL)
+	    return;
+    
+    if((controller = controller_init(model)) == NULL)
+	    return;
 
-        v = View(t.value, model, controller, cyclic_interrupt_id);
-        gtk_window_set_application(GTK_WINDOW(v.ui.window), app);
+    if((t = ui_build("ui/ui.glade")).is_value == false)
+	    return;
 
-        gtk_window_maximize(GTK_WINDOW(v.ui.window));
-        gtk_window_set_title(GTK_WINDOW(v.ui.window), "Webasto Traceability");
+    int cyclic_interrupt_id = g_timeout_add(1000, view_cyclic_interupt_callback, &v);
 
-        view_set_table_list(&v);        
+    v = View(t.value, model, controller, cyclic_interrupt_id);
+    gtk_window_set_application(GTK_WINDOW(v.ui.window), app);
 
-        signals(&v);
- 
-        gtk_widget_show(GTK_WIDGET(v.ui.window));
-    }
+    gtk_window_maximize(GTK_WINDOW(v.ui.window));
+    gtk_window_set_title(GTK_WINDOW(v.ui.window), "Webasto Traceability");
 
-    /* treat error */
+    view_set_table_list(&v);        
+
+    signals(&v);
+    gtk_widget_show(GTK_WIDGET(v.ui.window));
 }
 
 

@@ -20,7 +20,13 @@ model_init(void)
 
     if(log_stream != NULL)
         self->log = log_new(2, (FILE*[]) {stdout, log_stream});
-    
+    else
+    {
+	    fprintf(stderr, "ERROR open log file!\n");
+	    model_delete(self);
+	    return NULL;
+    }
+	
     int rc = sqlite3_open("db/database.db", &self->db);
   
     if(rc != SQLITE_OK)
@@ -543,10 +549,10 @@ model_generate_frame_csv(
         , "%[^*]*%[^*]*%[^ ] %[^*]*%[^*]*%[^*]*S"
         , primer_batch
         , primer_part_number
-        , primer_fill_date
-        , primer_fill_time
         , primer_expiration_date
-        , primer_expiration_time);
+        , primer_expiration_time
+        , primer_fill_date
+        , primer_fill_time);
 
     snprintf(
 		file_name
