@@ -153,11 +153,7 @@ step_wait(PLC1_Thread8 * self)
             return ThreadResult(.step = FINISH_TRUE);
         }
         else
-        {
-            printf("null pointer\n");
             return ThreadResult(.step = ERROR);
-        }
-    
     }
     else
         return ThreadResult(.step = WAIT);

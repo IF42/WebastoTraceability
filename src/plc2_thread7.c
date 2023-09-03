@@ -10,9 +10,11 @@
 
 typedef enum
 {
-    WAIT
+	INIT
+    , WAIT
     , FINISH
     , ERROR
+	, STATE_N
 }ThreadState;
 
 
@@ -23,19 +25,20 @@ typedef struct
 }ThreadResult;
 
 
-#define ThreadResult(...)(ThreadResult){__VA_ARGS__}
+#define throw_error return (ThreadResult){.is_error = true}
+#define state(T)(ThreadResult){.step=T}
+
+typedef struct PLC2_Thread7 PLC2_Thread7;
+typedef ThreadResult (*ThreadCallback)(PLC2_Thread7 *);
 
 
-typedef struct 
+struct PLC2_Thread7
 {
     PLC_Thread super;
     ThreadState step;
+    ThreadCallback thread_callback[STATE_N];
+};
 
-    char * csv_path;
-}PLC2_Thread7;
-
-
-#define PLC2_Thread7(...)(PLC2_Thread7){__VA_ARGS__}
 
 #define PLC2_THREAD7(T)((PLC2_Thread7*) T)
 
@@ -64,31 +67,38 @@ struct Frame
 }__attribute__((packed, aligned(1)));
 
 
+static ThreadResult
+step_init(PLC2_Thread7 * self)
+{
+	 Result result = {0};
+
+	 if(Cli_DBWrite(self->super.client, PLC2_THREAD7_DB_INDEX, 0, sizeof(Result), &result) != 0)
+		 throw_error;
+	 else
+		 return state(WAIT);
+}
+
+
 static ThreadResult 
 step_wait(PLC2_Thread7 * self)
 {
     Execute execute;
     Frame frame;
-    Result result = {0};
 
-    if(Cli_DBRead(self->super.client, PLC2_THREAD7_DB_INDEX, 2, sizeof(Execute), &execute) != 0
-        || Cli_DBWrite(self->super.client, PLC2_THREAD7_DB_INDEX, 0, sizeof(Result), &result) != 0)
-    {
-        return ThreadResult(.is_error = true);
-    } 
+    if(Cli_DBRead(self->super.client, PLC2_THREAD7_DB_INDEX, 2, sizeof(Execute), &execute) != 0)
+       throw_error;
 
     if(execute.execute == false) 
-        return ThreadResult(.step = WAIT);
+        return state(WAIT);
 
     if(Cli_DBRead(self->super.client, PLC2_THREAD7_DB_INDEX, 4, sizeof(Frame), &frame) != 0)
-        return ThreadResult(.is_error = true);
+        throw_error;
 
     frame.table.array[frame.table.length]           = '\0';
     frame.frame_code.array[frame.frame_code.length] = '\0';
-    frame.PATH.array[frame.PATH.length] = '\0';
-
-    frame.temperature = swap_endian(frame.temperature);
-    frame.humidity    = swap_endian(frame.humidity);
+    frame.PATH.array[frame.PATH.length]             = '\0';
+    frame.temperature                               = swap_endian(frame.temperature);
+    frame.humidity                                  = swap_endian(frame.humidity);
 
     if(model_generate_frame_csv(
         self->super.model
@@ -98,10 +108,17 @@ step_wait(PLC2_Thread7 * self)
         , ((float)frame.temperature)/10.0
         , ((float)frame.humidity)/10.0) == true)
     {
-        return ThreadResult(.step = FINISH);
+
+        return state(FINISH);
     }
     else
-        return ThreadResult(.step = ERROR);
+    {
+    	log_error(
+    			self->super.model->log
+				, "%s%d: plc2 csv was not create for frame: %s"
+				,__FILE__, __LINE__, frame.frame_code.array);
+        return state(ERROR);
+    }
 }
 
 
@@ -114,13 +131,13 @@ step_finish(PLC2_Thread7 * self)
     if(Cli_DBRead(self->super.client, PLC2_THREAD7_DB_INDEX, 2, sizeof(Execute), &execute) != 0
         || Cli_DBWrite(self->super.client, PLC2_THREAD7_DB_INDEX, 0, sizeof(Result), &result) != 0)
     {
-        return ThreadResult(.is_error = true);
+        throw_error;
     }
 
     if(execute.execute == false)
-        return ThreadResult(.step = WAIT);
+        return state(INIT);
     else
-        return ThreadResult(.step = FINISH);
+        return state(FINISH);
 }
 
 
@@ -133,13 +150,13 @@ step_error(PLC2_Thread7 * self)
     if(Cli_DBRead(self->super.client, PLC2_THREAD7_DB_INDEX, 2, sizeof(Execute), &execute) != 0
         || Cli_DBWrite(self->super.client, PLC2_THREAD7_DB_INDEX, 0, sizeof(Result), &result) != 0)
     {
-        return ThreadResult(.is_error = true);
+        throw_error;
     }
 
     if(execute.execute == false)
-        return ThreadResult(.step = WAIT);
+        return state(INIT);
     else
-        return ThreadResult(.step = ERROR);
+        return state(ERROR);
 }
 
 
@@ -148,32 +165,17 @@ plc2_thread7_run(PLC_Thread * self)
 {
     ThreadResult result;
 
-    switch(PLC2_THREAD7(self)->step)
+    if(PLC2_THREAD7(self)->step < STATE_N)
     {
-        case WAIT:
-            if((result = step_wait(PLC2_THREAD7(self))).is_error == false)
-                PLC2_THREAD7(self)->step = result.step;
-            else
-                return false;
+    	ThreadCallback thread_callback = PLC2_THREAD7(self)->thread_callback[PLC2_THREAD7(self)->step];
 
-            break;
-        case FINISH:
-            if((result = step_finish(PLC2_THREAD7(self))).is_error == false)
-                PLC2_THREAD7(self)->step = result.step;
-            else
-                return false;
-
-            break;
-        case ERROR:
-            if((result = step_error(PLC2_THREAD7(self))).is_error == false)
-                PLC2_THREAD7(self)->step = result.step;
-            else
-                return false;
-
-            break;
-        default:
-            PLC2_THREAD7(self)->step = WAIT;
+    	if((result = thread_callback(PLC2_THREAD7(self))).is_error == false)
+			PLC2_THREAD7(self)->step = result.step;
+		else
+			return false;
     }
+    else
+    	PLC2_THREAD7(self)->step = INIT;
 
     return true;
 }
@@ -182,17 +184,18 @@ plc2_thread7_run(PLC_Thread * self)
 PLC_Thread *
 plc2_thread7_new(
     Model * model
-    , S7Object client
-    , char * csv_path)
+    , S7Object client)
 {
     PLC2_Thread7 * self = malloc(sizeof(PLC2_Thread7));
 
     if(self != NULL)
     {
-        self->super = PLC_Thread(model, client, plc2_thread7_run, (void(*)(PLC_Thread*)) free);
-        self->step  = WAIT;
-
-        self->csv_path = strdup(csv_path);
+    	*self = (PLC2_Thread7)
+		{
+    		.super = PLC_Thread(model, client, plc2_thread7_run, (void(*)(PLC_Thread*)) free)
+        	, .step  = INIT
+			, .thread_callback = {step_init, step_wait, step_finish, step_error}
+		};
     }
 
     return PLC_THREAD(self);

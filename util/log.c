@@ -18,8 +18,8 @@ struct Log
     pthread_mutex_t lock;
     bool quiet;
 
-    size_t f_list_length;
-    FILE * f_list[];
+    size_t length;
+    FILE * stream[];
 };
 
 
@@ -46,9 +46,29 @@ const char * log_level_label[LogLevelNumber] =
 };
 
 
+static char *
+_log_time_stamp()
+{
+    static char str_time[128] = {0};
+    time_t raw_time;
+    struct tm * timeinfo;
 
-char *
-_log_time_stamp();
+    time(&raw_time);
+    timeinfo = localtime(&raw_time);
+
+    snprintf(
+        str_time
+        , 128
+        , "%02d-%02d-%d %02d:%02d:%02d"
+        , timeinfo->tm_mday
+        , timeinfo->tm_mon + 1
+        , timeinfo->tm_year + 1900
+        , timeinfo->tm_hour
+        , timeinfo->tm_min
+        , timeinfo->tm_sec);
+
+    return str_time;
+}
 
 
 static void
@@ -56,23 +76,42 @@ _log_process(
     Log * log
     , const char * log_level
     , const char * format
-    , va_list * p);
+    , va_list args)
+{
+    pthread_mutex_lock(&log->lock);
+
+    for(size_t i = 0; i < log->length; i++)
+    {
+        //va_list args_cpy;
+        //va_copy(args_cpy, *args);
+
+        fprintf(log->stream[i], "%s [%s] - ", _log_time_stamp(), log_level);
+        vfprintf(log->stream[i], format, args);
+        fprintf(log->stream[i], "\n");
+
+        fflush(log->stream[i]);
+    }
+
+    pthread_mutex_unlock(&log->lock);
+}
+
+
 
 
 Log *
 log_new(
-    size_t f_list_length
-    , FILE * f_list[f_list_length])
+    size_t length
+    , FILE * stream[length])
 {
-    size_t f_list_byte_size = (sizeof(FILE*)*f_list_length);
+    size_t memsize = (sizeof(FILE*) * length);
 
-    Log * log = malloc(sizeof(Log) + f_list_byte_size);
+    Log * log = malloc(sizeof(Log) + memsize);
     
     if(log != NULL)
     {
-        memcpy(log->f_list, f_list, f_list_byte_size);
+        memcpy(log->stream, stream, memsize);
         log->quiet = false;
-        log->f_list_length = f_list_length;
+        log->length = length;
 
         if (pthread_mutex_init(&log->lock, NULL) != 0)
         {
@@ -95,12 +134,12 @@ log_debug(
 {
     if(log->quiet == false)
     {
-        va_list p;
-        va_start(p, format);
+        va_list args;
+        va_start(args, format);
 
-        _log_process(log, log_level_label[Debug], format, &p);
+        _log_process(log, log_level_label[Debug], format, args);
 
-        va_end(p);
+        va_end(args);
     }
 }
 
@@ -113,12 +152,12 @@ log_warning(
 {
     if(log->quiet == false)
     {
-        va_list p;
-        va_start(p, format);
+        va_list args;
+        va_start(args, format);
 
-        _log_process(log, log_level_label[Warning], format, &p);
+        _log_process(log, log_level_label[Warning], format, args);
 
-        va_end(p);
+        va_end(args);
     }
 }
 
@@ -131,12 +170,12 @@ log_error(
 {
     if(log->quiet == false)
     {
-        va_list p;
-        va_start(p, format);
+        va_list args;
+        va_start(args, format);
 
-        _log_process(log, log_level_label[Error], format, &p);
+        _log_process(log, log_level_label[Error], format, args);
 
-        va_end(p);
+        va_end(args);
     }
 }
 
@@ -194,51 +233,4 @@ log_delete(Log * log)
 }
 
 
-static void
-_log_process(
-    Log * log
-    , const char * log_level
-    , const char * format
-    , va_list * p)
-{
-    pthread_mutex_lock(&log->lock);
 
-    for(size_t i = 0; i < log->f_list_length; i++)
-    {
-        va_list iter;
-        va_copy(iter, *p);
-
-        fprintf(log->f_list[i], "%s [%s] - ", _log_time_stamp(), log_level);
-        vfprintf(log->f_list[i], format, iter);
-        fprintf(log->f_list[i], "\n");
-        
-        fflush(log->f_list[i]);
-    }
-
-    pthread_mutex_unlock(&log->lock);
-}
-
-
-char *
-_log_time_stamp()
-{
-    static char str_time[128] = {0};
-    time_t raw_time;
-    struct tm * timeinfo; 
-   
-    time(&raw_time);
-    timeinfo = localtime(&raw_time);
-    
-    snprintf(
-        str_time
-        , 128
-        , "%02d-%02d-%d %02d:%02d:%02d"
-        , timeinfo->tm_mday
-        , timeinfo->tm_mon + 1
-        , timeinfo->tm_year + 1900
-        , timeinfo->tm_hour
-        , timeinfo->tm_min
-        , timeinfo->tm_sec);
-    
-    return str_time;
-}

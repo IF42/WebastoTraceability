@@ -9,6 +9,9 @@ old
 *.db
 *.csv
 *.stackdump
+.project
+.cproject
+*.settings
 
 # Object files
 *.o

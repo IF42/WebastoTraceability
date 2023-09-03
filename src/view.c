@@ -676,7 +676,7 @@ view_set_table_list(View * self)
 void
 view(GtkApplication * app)
 {
-    O_Ui t;  
+    O_Ui t;
     Model * model;
     Controller * controller;
 

@@ -31,7 +31,7 @@
 #include <snap7.h>
 
 
-#define CYCLE_TIME 500  // ms
+#define CYCLE_TIME 1000  // ms
 
 
 
@@ -54,7 +54,7 @@ typedef enum
 
 
 /**
-** if the cycle interval is 500ms, this meens reconnection after 5 seconds
+** if the cycle interval is 500ms, this means reconnection after 5 seconds
 */
 #define RECONNECT_DELAY 10
 
@@ -112,7 +112,7 @@ controller_run_process(
     }
     else if(process->status == DISCONNECTED)
     {
-        // because this is called in main thread, it is protection aginst freezing if the plc not responding
+        // because this is called in main thread, it is protection against freezing if the plc not responding
         if(process->connection_delay >= RECONNECT_DELAY)
         {
             process->connection_delay = 0;
@@ -177,7 +177,7 @@ controller_thread(Controller * self)
 
         if(elapsed_time < CYCLE_TIME)
         {
-            uint32_t cycle_delay = CYCLE_TIME-elapsed_time;
+            uint32_t cycle_delay = CYCLE_TIME - elapsed_time;
             struct timespec delay = 
                 {
                     .tv_sec = cycle_delay / 1000
@@ -196,20 +196,9 @@ Controller *
 controller_init(Model * model)
 {
     Controller * self = malloc(sizeof(Controller));
-    char csv_path[256] = {0};
 
     if(self != NULL)
     {
-        FILE * f = fopen("config.cfg", "r");
-
-        if(f != NULL)
-        {
-            fread(csv_path, 255, sizeof(char), f);
-            fclose(f);
-        }
-        else
-            sprintf(csv_path, ".");
-
         self->model = model;
         
         self->plc1 = (PLC_Process) 
@@ -246,7 +235,7 @@ controller_init(Model * model)
         self->plc1.thread_pool[7]  = plc1_thread8_new(model, self->plc1.client);
         self->plc1.thread_pool[8]  = plc1_thread9_new(model, self->plc1.client);
         self->plc1.thread_pool[9]  = plc1_thread10_new(model, self->plc1.client);
-        self->plc1.thread_pool[10] = plc1_thread11_new(model, self->plc1.client, csv_path);
+        self->plc1.thread_pool[10] = plc1_thread11_new(model, self->plc1.client);
         self->plc1.thread_pool[11] = plc1_thread12_new(model, self->plc1.client);
         self->plc1.thread_pool[12] = plc1_thread13_new(model, self->plc1.client);
         self->plc1.thread_pool[13] = plc1_thread14_new(model, self->plc1.client);
@@ -259,7 +248,7 @@ controller_init(Model * model)
         self->plc2.thread_pool[3] = plc2_thread4_new(model, self->plc2.client);
         self->plc2.thread_pool[4] = plc2_thread5_new(model, self->plc2.client);
         self->plc2.thread_pool[5] = plc2_thread6_new(model, self->plc2.client);
-        self->plc2.thread_pool[6] = plc2_thread7_new(model, self->plc2.client, csv_path);
+        self->plc2.thread_pool[6] = plc2_thread7_new(model, self->plc2.client);
         self->plc2.thread_pool[7] = plc2_thread8_new(model, self->plc2.client);
         self->plc2.thread_pool[8] = plc2_thread9_new(model, self->plc2.client);
 
