@@ -1,5 +1,5 @@
 CC=gcc
-CFLAGS=-Wall -Wextra -pedantic -g -std=c2x -Ofast $$(pkg-config --cflags gtk+-3.0 sqlite3) -I/usr/include/ -Iutil
+CFLAGS=-Wall -Wextra -pedantic -std=c2x -Ofast $$(pkg-config --cflags gtk+-3.0 sqlite3) -I/usr/include/ -Iutil
 LIBS=$$(pkg-config --libs gtk+-3.0 sqlite3) -lcrypto -L. -lsnap7 -L/mingw64/lib -lpthread 
 
 UNAME := $(shell uname)

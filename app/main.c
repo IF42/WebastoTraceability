@@ -1,17 +1,67 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <gtk/gtk.h>
+#include <signal.h>
 
 #include "../src/view.h"
 
 
-static char * __version__  = "1.0.2";
+#define LOCK_FILE "traceability.lock"
+
+
+static char * __version__  = "1.0.3";
 static char * __progname__ = "WebastoTraceability";
+
+
+static void
+cleanup(void)
+{
+    remove(LOCK_FILE);
+}
+
+
+static void 
+signal_handler(int signal) 
+{
+    if (signal == SIGINT || signal == SIGTERM) 
+    {
+        cleanup();
+        exit(0);
+    }
+}
 
 
 int
 main(int argc, char ** argv)
 {
+    signal(SIGINT, signal_handler);
+    signal(SIGTERM, signal_handler);
+    
+    /*
+    ** check if lock file exists
+    */
+    FILE * file = fopen(LOCK_FILE, "r");
+
+    if (file != NULL) 
+    {
+        fclose(file);
+        printf("Another instance is already running.\n");
+        return 0;
+    }
+
+    /*
+    ** creating of lock file
+    */
+    file = fopen(LOCK_FILE, "w");
+    
+    if (file == NULL) 
+    {
+        perror("Failed to create config file!");
+        return 1;
+    }
+
+    fclose(file);
+
     GtkApplication * app;
 
     if(argc > 1 && strcmp(argv[1], "--version") == 0)
@@ -38,6 +88,8 @@ main(int argc, char ** argv)
 
     g_object_unref(app);
     
+    cleanup();
+
     return result;
 }
 

@@ -32,8 +32,8 @@ typedef struct Log Log;
 */
 Log *
 log_new(
-    size_t f_list_length
-    , FILE * f_list[f_list_length]);
+    size_t length
+    , FILE * f_list[length]);
 
 
 /**
@@ -79,7 +79,7 @@ log_error(
 /**
 ** @brief Settup function for control of writing log messages into predefined FILE streams
 ** @param log Pointer to Log object
-** @param enable Control value for log messages output. True = log dissable.
+** @param enable Control value for log messages output. True = log disable.
 */
 void 
 log_set_quiet(

@@ -24,6 +24,7 @@ model_init(void)
     {
 	    fprintf(stderr, "ERROR open log file!\n");
 	    model_delete(self);
+
 	    return NULL;
     }
 	
@@ -55,6 +56,7 @@ table_content_delete(TableContent * self)
     free(self);
 }
 
+
 static void
 array_string_delete(ArrayString * self)
 {
@@ -77,64 +79,61 @@ model_db_read(
     , const char * query_format
     , ...)
 {
-    va_list args;
-    char sql_query[512];
-    sqlite3_stmt * res;
+	va_list args;
+	char sql_query[512];
+	sqlite3_stmt * res;
 
-    va_start(args, query_format);
-    vsnprintf(sql_query, 511, query_format, args);
-    va_end(args);
+	va_start(args, query_format);
+	vsnprintf(sql_query, 511, query_format, args);
+	va_end(args);
 
-    pthread_mutex_lock(&self->mutex);
+	pthread_mutex_lock(&self->mutex);
 
-    int rc = sqlite3_prepare_v2(self->db, sql_query, -1, &res, 0);
-    
-    if (rc != SQLITE_OK)
-    {
-        sqlite3_finalize(res);
-        log_error(self->log, "SQLITE read table error: (%d) %s", rc, sqlite3_errmsg(self->db));
+	int rc = sqlite3_prepare_v2(self->db, sql_query, -1, &res, 0);
 
-        printf("%s\n", sql_query);
-        pthread_mutex_unlock(&self->mutex);
+	if (rc != SQLITE_OK)
+	{
+		log_error(self->log, "SQLITE read table error: (%d) %s", rc, sqlite3_errmsg(self->db));
+		pthread_mutex_unlock(&self->mutex);
 
-        return NULL;
-    }
+		return NULL;
+	}
 
-    TableContent * db_table_content = 
-        (TableContent*) array_new(
-                            sizeof(ArrayString*)
-                            , 0
-                            , (void (*)(void*))table_content_delete);
+	TableContent * db_table_content =
+		(TableContent*) array_new(
+							sizeof(ArrayString*)
+							, 0
+							, (void (*)(void*))table_content_delete);
 
-    for (size_t i = 0; sqlite3_step(res) == SQLITE_ROW; i++)
-    {
-        db_table_content = 
-            (TableContent*) array_resize(
-                                ARRAY(db_table_content)
-                                , i+1);
-        db_table_content->array[i] = 
-            (ArrayString*) array_new(
-                                sizeof(char*)
-                                , 0
-                                , (void(*)(void*)) array_string_delete);
+	for (size_t i = 0; sqlite3_step(res) == SQLITE_ROW; i++)
+	{
+		db_table_content =
+			(TableContent*) array_resize(
+								ARRAY(db_table_content)
+								, i+1);
+		db_table_content->array[i] =
+			(ArrayString*) array_new(
+								sizeof(char*)
+								, 0
+								, (void(*)(void*)) array_string_delete);
 
-        char * string;
+		char * string;
 
-        for(size_t j = 0; (string = (char*) sqlite3_column_text(res, j)) != NULL; j++)
-        {
-            db_table_content->array[i] = 
-                (ArrayString*) array_resize(
-                                    ARRAY(db_table_content->array[i])
-                                    , j+1);
+		for(size_t j = 0; (string = (char*) sqlite3_column_text(res, j)) != NULL; j++)
+		{
+			db_table_content->array[i] =
+				(ArrayString*) array_resize(
+									ARRAY(db_table_content->array[i])
+									, j+1);
 
-            db_table_content->array[i]->array[j] = strdup(string);
-        }
-    } 
-    
-    sqlite3_finalize(res);
-    pthread_mutex_unlock(&self->mutex);
+			db_table_content->array[i]->array[j] = strdup(string);
+		}
+	}
 
-    return db_table_content;
+	sqlite3_finalize(res);
+	pthread_mutex_unlock(&self->mutex);
+
+	return db_table_content;
 }
 
 static bool
@@ -154,16 +153,11 @@ model_db_write(
     pthread_mutex_lock(&self->mutex);
 
     int rc = sqlite3_exec(self->db, sql_query, 0, 0,  NULL);
-    
-    printf("%s\n", sql_query);
-    fflush(stdout);
 
     if (rc == SQLITE_OK)
         result = true;
     else
-    {
         log_error(self->log, "SQLITE write error: (%d) %s", rc, sqlite3_errmsg(self->db));
-    }
 
     pthread_mutex_unlock(&self->mutex);
 
@@ -172,11 +166,11 @@ model_db_write(
 
 
 TableContent *
-model_get_table_list(Model * self)
+model_get_table_list(Model * self )
 {
     return model_db_read(
                 self
-                , "SELECT name FROM sqlite_schema WHERE type ='table' AND name NOT LIKE \"sqlite_%\";");
+                , "SELECT name FROM sqlite_schema WHERE type='table' AND name NOT LIKE \"sqlite_%\";");
 }
 
 
@@ -249,6 +243,7 @@ model_delete_record(
 {
     char sql_query[2048];
     bool result = true;
+    int rc;
     
     sprintf(sql_query, "DELETE FROM %s WHERE ", table);
     
@@ -267,11 +262,7 @@ model_delete_record(
 
     pthread_mutex_lock(&self->mutex);
 
-    int rc = sqlite3_exec(self->db, sql_query, 0, 0,  NULL);
-
-    printf("%s\n", sql_query);
-
-    if (rc != SQLITE_OK)
+    if ((rc  = sqlite3_exec(self->db, sql_query, 0, 0,  NULL)) != SQLITE_OK)
     {
         log_error(self->log, "SQLITE delete record exception: (%d) %s", rc, sqlite3_errmsg(self->db));
         result = false;
@@ -301,25 +292,25 @@ model_check_cover_exists(
     , char * cover_code)
 {
     char query[512] = {0};
+    bool cover_exists = false;
+    sqlite3_stmt *res;
+    int rc;
+
     sprintf(
         query
         , "SELECT cover_code FROM covers WHERE cover_code='%s';"
         , cover_code);
 
-    bool cover_exists = false;
-    sqlite3_stmt *res;
-
     pthread_mutex_lock(&self->mutex);
-
-    int rc = sqlite3_prepare_v2(self->db, query, -1, &res, NULL);
     
-    if (rc == SQLITE_OK)
+    if ((rc = sqlite3_prepare_v2(self->db, query, -1, &res, NULL)) == SQLITE_OK)
     {
         if(sqlite3_step(res) == SQLITE_ROW)
             cover_exists = true;
+
+        sqlite3_finalize(res);
     }
 
-    sqlite3_finalize(res);
     pthread_mutex_unlock(&self->mutex);
 
     return cover_exists;
@@ -335,7 +326,7 @@ model_write_new_cover(
     , char * bottle2_batch
     , bool spare)
 {
-    time_t t = time(NULL);
+    time_t t     = time(NULL);
     struct tm tm = *localtime(&t);
 
     return model_db_write(
@@ -443,7 +434,7 @@ model_pa60r_update_frame_rework(
     , char * frame_code
     , uint8_t rework)
 {
-    time_t t = time(NULL);
+    time_t t     = time(NULL);
     struct tm tm = *localtime(&t);
 
     return model_db_write(
@@ -464,7 +455,7 @@ model_pa60r_update_frame(
     , char * table
     , char * frame_code)
 {
-    time_t t = time(NULL);
+    time_t t     = time(NULL);
     struct tm tm = *localtime(&t);
 
     return model_db_write(
@@ -485,7 +476,7 @@ model_pa30b_update_frame(
     , char * left_cover_code
     , char * right_cover_code)
 {
-    time_t t = time(NULL);
+    time_t t     = time(NULL);
     struct tm tm = *localtime(&t);
 
     return model_db_write(
@@ -497,6 +488,19 @@ model_pa30b_update_frame(
             , left_cover_code
             , right_cover_code
             , frame_code);
+}
+
+
+static void
+to_unix_path(char * path)
+{
+	while(*path != 0)
+	{
+		if(*path == '\\')
+			*path = '/';
+
+		path++;
+	}
 }
 
 
@@ -543,7 +547,6 @@ model_generate_frame_csv(
 	else
 		sscanf(content->array[0]->array[4], "%hhd.%hhd.%hd*%hhd:%hhd", &day, &mon, &year, &hour, &min);
 
-
      sscanf(
         content->array[0]->array[5]
         , "%[^*]*%[^*]*%[^ ] %[^*]*%[^*]*%[^*]*S"
@@ -553,6 +556,11 @@ model_generate_frame_csv(
         , primer_expiration_time
         , primer_fill_date
         , primer_fill_time);
+
+    /*
+    ** replace backslash to forward slash
+    */
+    to_unix_path(csv_path);
 
     snprintf(
 		file_name
@@ -565,7 +573,18 @@ model_generate_frame_csv(
 		, hour
 		, min);
 
-    FILE * f = fopen(file_name, "w");
+    FILE * f = fopen(file_name, "r");
+
+    if(f != NULL)
+    {
+    	log_error(self->log, "Can't write csv, file '%s' already exists", file_name);
+
+    	array_delete(ARRAY(content));
+    	fclose(f);
+    	return false;
+    }
+
+    f = fopen(file_name, "w");
 
     if(f == NULL)
     {
@@ -678,7 +697,6 @@ model_generate_frame_csv(
         fflush(f);
     }
     
-    fflush(f);
     fclose(f);
     array_delete(ARRAY(content));
 
@@ -692,13 +710,14 @@ model_supplier_bottle_exists(
     , char * bottle_batch_code)
 {
     char query[512] = {0};
+
     sprintf(
         query
         , "SELECT batch_code FROM suplier_bottle WHERE batch_code='%s';"
         , bottle_batch_code);
 
     bool cover_exists = false;
-    sqlite3_stmt *res;
+    sqlite3_stmt * res = NULL;
 
     pthread_mutex_lock(&self->mutex);
 
@@ -708,9 +727,10 @@ model_supplier_bottle_exists(
     {
         if(sqlite3_step(res) == SQLITE_ROW)
             cover_exists = true;
+
+        sqlite3_finalize(res);
     }
 
-    sqlite3_finalize(res);
     pthread_mutex_unlock(&self->mutex);
 
     return cover_exists;
@@ -723,7 +743,7 @@ model_write_supplier_bottle(
     , char * chemical_type
     , char * batch_code)
 {
-    time_t t = time(NULL);
+    time_t t     = time(NULL);
     struct tm tm = *localtime(&t);
 
     return model_db_write(
@@ -795,7 +815,7 @@ model_update_bottle_shake_time(
     Model * self
     , char * batch_code)
 {
-    time_t t = time(NULL);
+    time_t t     = time(NULL);
     struct tm tm = *localtime(&t);
 
     return model_db_write(

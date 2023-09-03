@@ -6,9 +6,11 @@
 
 typedef enum
 {
-    WAIT
+	INIT
+    , WAIT
     , FINISH
     , ERROR
+	, STATE_N
 }ThreadState;
 
 
@@ -18,14 +20,21 @@ typedef struct
     ThreadState step;
 }ThreadResult;
 
-#define ThreadResult(...)(ThreadResult){__VA_ARGS__}
+
+#define throw_error return (ThreadResult){.is_error=true}
+#define state(T) (ThreadResult){.step=T}
 
 
-typedef struct
+typedef struct PLC1_Thread10 PLC1_Thread10;
+typedef ThreadResult (*ThreadCallback)(PLC1_Thread10 *);
+
+
+struct PLC1_Thread10
 {
     PLC_Thread super;
     ThreadState step;
-}PLC1_Thread10;
+    ThreadCallback thread_callback[STATE_N];
+};
 
 #define PLC1_THREAD10(T)((PLC1_Thread10*) T)
 
@@ -50,24 +59,32 @@ typedef struct
 }Frame;
 
 
+static ThreadResult
+step_init(PLC1_Thread10 * self)
+{
+	Result result = {0};
+
+	if(Cli_DBWrite(self->super.client, PLC1_THREAD10_DB_INDEX, 0, sizeof(Result), &result) != 0)
+		throw_error;
+	else
+		return state(WAIT);
+}
+
+
 static ThreadResult 
 step_wait(PLC1_Thread10 * self)
 {
     Execute execute;
     Frame frame;
-    Result result = {0};
 
-    if(Cli_DBRead(self->super.client, PLC1_THREAD10_DB_INDEX, 2, sizeof(Execute), &execute) != 0
-        || Cli_DBWrite(self->super.client, PLC1_THREAD10_DB_INDEX, 0, sizeof(Result), &result) != 0)
-    {
-        return ThreadResult(.is_error = true);
-    }
+    if(Cli_DBRead(self->super.client, PLC1_THREAD10_DB_INDEX, 2, sizeof(Execute), &execute) != 0)
+        throw_error;
 
     if(execute.execute == false)
-        return ThreadResult(.step = WAIT);
+        return state(WAIT);
 
     if(Cli_DBRead(self->super.client, PLC1_THREAD10_DB_INDEX, 4, sizeof(Frame), &frame) != 0)
-        return ThreadResult(.is_error = true);
+        throw_error;
 
     frame.table.array[frame.table.length]           = '\0';
     frame.frame_code.array[frame.frame_code.length] = '\0';
@@ -77,10 +94,10 @@ step_wait(PLC1_Thread10 * self)
             , frame.table.array
             , frame.frame_code.array) == true)
     {
-        return ThreadResult(.step = FINISH);
+        return state(FINISH);
     }
     else
-        return ThreadResult(.step = ERROR);
+        return state(ERROR);
 }
 
 
@@ -93,13 +110,13 @@ step_finish(PLC1_Thread10 * self)
     if(Cli_DBRead(self->super.client, PLC1_THREAD10_DB_INDEX, 2, sizeof(Execute), &execute) != 0
          || Cli_DBWrite(self->super.client, PLC1_THREAD10_DB_INDEX, 0, sizeof(Result), &result) != 0)
     {
-        return ThreadResult(.is_error = true);
+        throw_error;
     }
 
     if(execute.execute == false)
-        return ThreadResult(.step = WAIT);
+        return state(INIT);
     else
-        return ThreadResult(.step = FINISH);
+        return state(FINISH);
 }
 
 
@@ -112,13 +129,13 @@ step_error(PLC1_Thread10 * self)
     if(Cli_DBRead(self->super.client, PLC1_THREAD10_DB_INDEX, 2, sizeof(Execute), &execute) != 0
          || Cli_DBWrite(self->super.client, PLC1_THREAD10_DB_INDEX, 0, sizeof(Result), &result) != 0)
     {
-        return ThreadResult(.is_error = true);
+        throw_error;
     }
 
     if(execute.execute == false)
-        return ThreadResult(.step = WAIT);
+        return state(INIT);
     else
-        return ThreadResult(.step = ERROR);
+        return state(ERROR);
 }
 
 
@@ -127,32 +144,17 @@ thread_run(PLC_Thread * self)
 {
     ThreadResult result;
 
-    switch(PLC1_THREAD10(self)->step)
+    if(PLC1_THREAD10(self)->step < STATE_N)
     {
-        case WAIT:
-            if((result = step_wait(PLC1_THREAD10(self))).is_error == false)
-                PLC1_THREAD10(self)->step = result.step;
-            else
-                return false;
+    	ThreadCallback callback = PLC1_THREAD10(self)->thread_callback[PLC1_THREAD10(self)->step];
 
-            break;
-        case FINISH:
-            if((result = step_finish(PLC1_THREAD10(self))).is_error == false)
-                PLC1_THREAD10(self)->step = result.step;
-            else
-                return false;
-
-            break;
-        case ERROR:
-            if((result = step_error(PLC1_THREAD10(self))).is_error == false)
-                PLC1_THREAD10(self)->step = result.step;
-            else
-                return false;
-
-            break;
-        default:
-            PLC1_THREAD10(self)->step = WAIT;
+    	if((result = callback(PLC1_THREAD10(self))).is_error == false)
+    		PLC1_THREAD10(self)->step = result.step;
+    	else
+    		return false;
     }
+    else
+    	PLC1_THREAD10(self)->step = INIT;
 
     return true;
 }
@@ -167,8 +169,12 @@ plc1_thread10_new(
 
     if(self != NULL)
     {
-        self->super = PLC_Thread(model, client, thread_run, (void(*)(PLC_Thread*)) free);
-        self->step = WAIT;   
+    	*self = (PLC1_Thread10)
+    	{
+    		.super = PLC_Thread(model, client, thread_run, (void(*)(PLC_Thread*)) free)
+    		, .step = INIT
+    		, .thread_callback = {step_init, step_wait, step_finish, step_error}
+    	};
     }
 
     return PLC_THREAD(self);
