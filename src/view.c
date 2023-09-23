@@ -14,19 +14,15 @@
 #define LOGOUT_INTERVAL 60*10 //seconds
 
 
-typedef struct
+struct View
 {
     Ui ui;
     Model * model;
     Controller * controller;
-    int cyclic_interrupt_id;
-}View;
+};
 
 
 #define View(...)(View){__VA_ARGS__}
-
-
-static View v;
 
 
 static void
@@ -651,6 +647,7 @@ signals(View * self)
     g_signal_connect(self->ui.entry_password, "activate", G_CALLBACK(view_entry_password_activate_callback), self);
 
     g_signal_connect(self->ui.db_table_view, "key-press-event", G_CALLBACK(view_db_table_view_on_key_press_callback), self);
+    g_signal_connect(G_OBJECT(self->ui.window), "destroy", G_CALLBACK(gtk_main_quit), NULL);
 }
 
 
@@ -673,34 +670,37 @@ view_set_table_list(View * self)
 }
 
 
-void
-view(GtkApplication * app)
+static View instance;
+static View * ptr;
+
+View *
+view_new(
+    Controller * controller
+    , Model * model)
 {
-    O_Ui t;
-    Model * model;
-    Controller * controller;
+    if(ptr == NULL)
+    {
+        O_Ui ui;
+        
+        if((ui = ui_build("ui/ui.glade")).is_value == false)
+            return NULL;
 
-    if((model = model_init()) == NULL)
-	    return;
-    
-    if((controller = controller_init(model)) == NULL)
-	    return;
+        instance = View(ui.value, model, controller);
+       
+        g_timeout_add(1000, view_cyclic_interupt_callback, &instance);
 
-    if((t = ui_build("ui/ui.glade")).is_value == false)
-	    return;
+        gtk_window_maximize(GTK_WINDOW(instance.ui.window));
+        gtk_window_set_title(GTK_WINDOW(instance.ui.window), "Webasto Traceability");
 
-    int cyclic_interrupt_id = g_timeout_add(1000, view_cyclic_interupt_callback, &v);
+        view_set_table_list(&instance);        
 
-    v = View(t.value, model, controller, cyclic_interrupt_id);
-    gtk_window_set_application(GTK_WINDOW(v.ui.window), app);
+        signals(&instance);
+        gtk_widget_show(GTK_WIDGET(instance.ui.window));
 
-    gtk_window_maximize(GTK_WINDOW(v.ui.window));
-    gtk_window_set_title(GTK_WINDOW(v.ui.window), "Webasto Traceability");
+        ptr = &instance;
+    }
 
-    view_set_table_list(&v);        
-
-    signals(&v);
-    gtk_widget_show(GTK_WIDGET(v.ui.window));
+    return ptr;
 }
 
 

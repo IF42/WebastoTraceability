@@ -3,16 +3,16 @@
 #include <gtk/gtk.h>
 #include <signal.h>
 
+#include "../src/version.h"
 #include "../src/view.h"
 
 
 #define LOCK_FILE "traceability.lock"
 
 
-static char * __version__  = "1.0.3";
-static char * __progname__ = "WebastoTraceability";
-
-
+/*
+** deleting lock file 
+*/
 static void
 cleanup(void)
 {
@@ -20,23 +20,36 @@ cleanup(void)
 }
 
 
-static void 
-signal_handler(int signal) 
+static void
+handle_cmd_args(
+    int argc
+    , char ** argv)
 {
-    if (signal == SIGINT || signal == SIGTERM) 
+    if(argc > 1) 
     {
-        cleanup();
-        exit(0);
+        if(strcmp(argv[1], "--version") == 0)
+        {
+            printf(
+                "%s: %s\nCompiled: %s\n"
+                , __progname__
+                , __version__
+                , __DATE__);
+        }
+        else if(strcmp(argv[1], "--clean") == 0)
+            cleanup();
+
+        exit(EXIT_SUCCESS);
     }
 }
 
 
-int
-main(int argc, char ** argv)
+/*
+** creation of lock file for prevent to run only one 
+** instance at one omment
+*/
+static void
+lock_running_instance(void)
 {
-    signal(SIGINT, signal_handler);
-    signal(SIGTERM, signal_handler);
-    
     /*
     ** check if lock file exists
     */
@@ -45,8 +58,8 @@ main(int argc, char ** argv)
     if (file != NULL) 
     {
         fclose(file);
-        printf("Another instance is already running.\n");
-        return 0;
+        fprintf(stderr, "Another instance is already running.\n");
+        exit(EXIT_FAILURE);
     }
 
     /*
@@ -56,41 +69,71 @@ main(int argc, char ** argv)
     
     if (file == NULL) 
     {
-        perror("Failed to create config file!");
-        return 1;
+        fprintf(stderr, "Failed to create config file!");
+        exit(EXIT_FAILURE);
     }
 
     fclose(file);
+}
 
-    GtkApplication * app;
 
-    if(argc > 1 && strcmp(argv[1], "--version") == 0)
+static void 
+signal_handler(int signal) 
+{
+    if (signal == SIGINT || signal == SIGTERM) 
     {
-        printf("%s - %s\n", __progname__, __version__);
-        return EXIT_SUCCESS;
+        cleanup();
+        exit(EXIT_SUCCESS);
+    }
+}
+
+
+int
+main(int argc, char ** argv)
+{
+    Model * model;
+    Controller * controller;
+    View * view;
+
+    handle_cmd_args(argc, argv);
+    lock_running_instance();
+
+    signal(SIGINT, signal_handler);
+    signal(SIGTERM, signal_handler);
+    
+    gtk_init(&argc, &argv);
+
+    /*
+    ** initialization of application
+    */
+    if((model = model_init()) == NULL)
+    {
+        cleanup();
+
+	    return EXIT_FAILURE;
+    }
+    
+    if((controller = controller_new(model)) == NULL)
+    {
+        model_delete(model);
+        cleanup();
+
+        return EXIT_FAILURE;
     }
 
-    app = gtk_application_new(
-                "gtk.example.webasto"
-                , G_APPLICATION_DEFAULT_FLAGS);
+    if((view = view_new(controller, model)) == NULL)
+    {
+        model_delete(model);
+        controller_delete(controller);
+        cleanup();
 
-    g_signal_connect(
-        G_OBJECT(app)
-        , "activate"
-        , G_CALLBACK(view)
-        , NULL);
+        return EXIT_FAILURE;
+    }
 
-    int result = 
-        g_application_run(
-            G_APPLICATION(app)
-            , argc
-            , argv);
-
-    g_object_unref(app);
-    
+    gtk_main();
     cleanup();
 
-    return result;
+    return EXIT_SUCCESS;
 }
 
 

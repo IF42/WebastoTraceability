@@ -33,7 +33,9 @@ typedef struct Log Log;
 Log *
 log_new(
     size_t length
-    , FILE * f_list[length]);
+    , FILE * f_list[length]
+    , const char * init_msg
+    , ...);
 
 
 /**

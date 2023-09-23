@@ -7,7 +7,7 @@
 typedef struct Controller Controller;
 
 Controller *
-controller_init(Model * model);
+controller_new(Model * model);
 
 
 void

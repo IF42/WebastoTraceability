@@ -82,9 +82,6 @@ _log_process(
 
     for(size_t i = 0; i < log->length; i++)
     {
-        //va_list args_cpy;
-        //va_copy(args_cpy, *args);
-
         fprintf(log->stream[i], "%s [%s] - ", _log_time_stamp(), log_level);
         vfprintf(log->stream[i], format, args);
         fprintf(log->stream[i], "\n");
@@ -101,7 +98,9 @@ _log_process(
 Log *
 log_new(
     size_t length
-    , FILE * stream[length])
+    , FILE * stream[length]
+    , const char * init_msg
+    , ...)
 {
     size_t memsize = (sizeof(FILE*) * length);
 
@@ -119,7 +118,10 @@ log_new(
             return NULL;
         }
 
-        log_debug(log, "Log init success");
+        va_list args;
+        va_start(args, init_msg);
+        _log_process(log, log_level_label[Debug], init_msg, args);
+        va_end(args);
     }
 
     return log;

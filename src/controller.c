@@ -191,17 +191,18 @@ controller_thread(Controller * self)
     return NULL;
 }
 
+static Controller instance;
+static Controller * ptr;
+
 
 Controller *
-controller_init(Model * model)
+controller_new(Model * model)
 {
-    Controller * self = malloc(sizeof(Controller));
-
-    if(self != NULL)
+    if(ptr == NULL)
     {
-        self->model = model;
+        instance.model = model;
         
-        self->plc1 = (PLC_Process) 
+        instance.plc1 = (PLC_Process) 
             {
                 .client             = Cli_Create()
                 , .status           = DISCONNECTED
@@ -213,7 +214,7 @@ controller_init(Model * model)
                 , .thread_pool      = malloc(sizeof(PLC_Thread *) * PLC1_THREAD_POOL_SIZE)
             };
 
-        self->plc2 = (PLC_Process) 
+        instance.plc2 = (PLC_Process) 
             {
                 .client             = Cli_Create()
                 , .status           = DISCONNECTED
@@ -225,41 +226,43 @@ controller_init(Model * model)
                 , .thread_pool      = malloc(sizeof(PLC_Thread *) * PLC2_THREAD_POOL_SIZE)
             };
 
-        self->plc1.thread_pool[0]  = plc_thread1_new(model, self->plc1.client, PLC1_THREAD1_DB_INDEX);
-        self->plc1.thread_pool[1]  = plc_thread2_new(model, self->plc1.client, PLC1_THREAD2_DB_INDEX);
-        self->plc1.thread_pool[2]  = plc1_thread3_new(model, self->plc1.client);
-        self->plc1.thread_pool[3]  = plc1_thread4_new(model, self->plc1.client);
-        self->plc1.thread_pool[4]  = plc1_thread5_new(model, self->plc1.client);
-        self->plc1.thread_pool[5]  = plc1_thread6_new(model, self->plc1.client);
-        self->plc1.thread_pool[6]  = plc1_thread7_new(model, self->plc1.client);
-        self->plc1.thread_pool[7]  = plc1_thread8_new(model, self->plc1.client);
-        self->plc1.thread_pool[8]  = plc1_thread9_new(model, self->plc1.client);
-        self->plc1.thread_pool[9]  = plc1_thread10_new(model, self->plc1.client);
-        self->plc1.thread_pool[10] = plc1_thread11_new(model, self->plc1.client);
-        self->plc1.thread_pool[11] = plc1_thread12_new(model, self->plc1.client);
-        self->plc1.thread_pool[12] = plc1_thread13_new(model, self->plc1.client);
-        self->plc1.thread_pool[13] = plc1_thread14_new(model, self->plc1.client);
-        self->plc1.thread_pool[14] = plc1_thread15_new(model, self->plc1.client);
-        self->plc1.thread_pool[15] = plc1_thread16_new(model, self->plc1.client);
+        instance.plc1.thread_pool[0]  = plc_thread1_new(model, instance.plc1.client, PLC1_THREAD1_DB_INDEX);
+        instance.plc1.thread_pool[1]  = plc_thread2_new(model, instance.plc1.client, PLC1_THREAD2_DB_INDEX);
+        instance.plc1.thread_pool[2]  = plc1_thread3_new(model, instance.plc1.client);
+        instance.plc1.thread_pool[3]  = plc1_thread4_new(model, instance.plc1.client);
+        instance.plc1.thread_pool[4]  = plc1_thread5_new(model, instance.plc1.client);
+        instance.plc1.thread_pool[5]  = plc1_thread6_new(model, instance.plc1.client);
+        instance.plc1.thread_pool[6]  = plc1_thread7_new(model, instance.plc1.client);
+        instance.plc1.thread_pool[7]  = plc1_thread8_new(model, instance.plc1.client);
+        instance.plc1.thread_pool[8]  = plc1_thread9_new(model, instance.plc1.client);
+        instance.plc1.thread_pool[9]  = plc1_thread10_new(model, instance.plc1.client);
+        instance.plc1.thread_pool[10] = plc1_thread11_new(model, instance.plc1.client);
+        instance.plc1.thread_pool[11] = plc1_thread12_new(model, instance.plc1.client);
+        instance.plc1.thread_pool[12] = plc1_thread13_new(model, instance.plc1.client);
+        instance.plc1.thread_pool[13] = plc1_thread14_new(model, instance.plc1.client);
+        instance.plc1.thread_pool[14] = plc1_thread15_new(model, instance.plc1.client);
+        instance.plc1.thread_pool[15] = plc1_thread16_new(model, instance.plc1.client);
 
-        self->plc2.thread_pool[0] = plc_thread1_new(model, self->plc2.client, PLC2_THREAD1_DB_INDEX);
-        self->plc2.thread_pool[1] = plc_thread2_new(model, self->plc2.client, PLC2_THREAD2_DB_INDEX);
-        self->plc2.thread_pool[2] = plc2_thread3_new(model, self->plc2.client);
-        self->plc2.thread_pool[3] = plc2_thread4_new(model, self->plc2.client);
-        self->plc2.thread_pool[4] = plc2_thread5_new(model, self->plc2.client);
-        self->plc2.thread_pool[5] = plc2_thread6_new(model, self->plc2.client);
-        self->plc2.thread_pool[6] = plc2_thread7_new(model, self->plc2.client);
-        self->plc2.thread_pool[7] = plc2_thread8_new(model, self->plc2.client);
-        self->plc2.thread_pool[8] = plc2_thread9_new(model, self->plc2.client);
+        instance.plc2.thread_pool[0] = plc_thread1_new(model, instance.plc2.client, PLC2_THREAD1_DB_INDEX);
+        instance.plc2.thread_pool[1] = plc_thread2_new(model, instance.plc2.client, PLC2_THREAD2_DB_INDEX);
+        instance.plc2.thread_pool[2] = plc2_thread3_new(model, instance.plc2.client);
+        instance.plc2.thread_pool[3] = plc2_thread4_new(model, instance.plc2.client);
+        instance.plc2.thread_pool[4] = plc2_thread5_new(model, instance.plc2.client);
+        instance.plc2.thread_pool[5] = plc2_thread6_new(model, instance.plc2.client);
+        instance.plc2.thread_pool[6] = plc2_thread7_new(model, instance.plc2.client);
+        instance.plc2.thread_pool[7] = plc2_thread8_new(model, instance.plc2.client);
+        instance.plc2.thread_pool[8] = plc2_thread9_new(model, instance.plc2.client);
 
         pthread_create(
-            &self->thread_id
+            &instance.thread_id
             , NULL
             , (void*(*)(void*)) controller_thread
-            , self); 
+            , &instance);
+    
+        ptr = &instance;
     }
     
-    return self;
+    return ptr;
 }
 
 
@@ -273,8 +276,6 @@ controller_delete(Controller * self)
 
         for(uint8_t i = 0; i < self->plc2.thread_pool_size; i++)
             plc_thread_delete(self->plc2.thread_pool[i]);
-
-        free(self);
     }
 }
 

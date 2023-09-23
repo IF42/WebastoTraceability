@@ -1,4 +1,4 @@
-.cache/main.o: app/main.c app/../src/view.h app/../src/ui.h
+.cache/main.o: app/main.c app/../src/version.h app/../src/view.h app/../src/ui.h
 .cache/controller.o: src/controller.c src/controller.h src/model.h util/log.h \
  util/array.h src/plc_thread_config.h src/plc_thread1.h src/plc_thread.h \
  util/snap7.h src/plc_thread2.h src/plc1_thread3.h src/plc1_thread4.h \

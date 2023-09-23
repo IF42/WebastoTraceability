@@ -1,4 +1,5 @@
 #include "model.h"
+#include "version.h"
 
 #include <util.h>
 #include <stdio.h>
@@ -9,38 +10,51 @@
 #include <assert.h>
 
 
+static Model instance;
+static Model * ptr;
+
 Model *
 model_init(void)
 {
-    Model * self = malloc(sizeof(Model));
-
-    self->logout_timer = 0;
-
-    FILE * log_stream = fopen(log_prepare_filename("log/log"), "w");
-
-    if(log_stream != NULL)
-        self->log = log_new(2, (FILE*[]) {stdout, log_stream});
-    else
+    if(ptr == NULL)
     {
-	    fprintf(stderr, "ERROR open log file!\n");
-	    model_delete(self);
+        instance.logout_timer = 0;
 
-	    return NULL;
+        FILE * log_stream = fopen(log_prepare_filename("log/log"), "w");
+
+        if(log_stream != NULL)
+        {
+            instance.log = 
+                log_new(
+                    2
+                    , (FILE*[]) {stdout, log_stream}
+                    , "Log init (%s: %s)"
+                    ,  __progname__
+                    , __version__);
+        }
+        else
+        {
+            fprintf(stderr, "ERROR open log file!\n");
+            model_delete(&instance);
+            
+            return NULL;
+        }
+        
+        int rc = sqlite3_open("db/database.db", &instance.db);
+      
+        if(rc != SQLITE_OK)
+        {
+            log_error(instance.log, "SQLITE open error: (%d) %s", rc, sqlite3_errmsg(instance.db));
+            model_delete(&instance);
+
+            return NULL;
+        }
+
+        pthread_mutex_init(&instance.mutex, NULL);
+        ptr = &instance;
     }
-	
-    int rc = sqlite3_open("db/database.db", &self->db);
-  
-    if(rc != SQLITE_OK)
-    {
-        log_error(self->log, "SQLITE open error: (%d) %s", rc, sqlite3_errmsg(self->db));
-        model_delete(self);
 
-        return NULL;
-    }
-
-    pthread_mutex_init(&self->mutex, NULL);
-
-    return self;
+    return ptr;
 }
 
 
@@ -853,7 +867,6 @@ model_delete(Model * self)
         log_delete(self->log);
 
         pthread_mutex_destroy(&self->mutex);
-        free(self);
     }
 }
 

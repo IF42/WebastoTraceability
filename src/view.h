@@ -2,10 +2,16 @@
 #define _VIEW_H_ 
 
 #include "ui.h"
+#include "controller.h"
+#include "model.h"
+
 #include <gtk/gtk.h>
 
+typedef struct View View;
 
-void 
-view(GtkApplication * app);
+View * 
+view_new(
+    Controller * controller
+    , Model * model);
 
 #endif

@@ -1,3 +1,8 @@
+# 1.1.0
+* Adding version into log init message for identifying of running version of traceability
+* Adding cleaning command into command line interface for lock file deleting
+* Improved application initialization
+
 # 1.0.3
 Improved performance of communication with PLC.
 

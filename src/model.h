@@ -36,6 +36,7 @@ typedef struct
 
 }Model;
 
+
 #define Model(...)(Model){__VA_LIST__}
 
 
