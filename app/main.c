@@ -3,6 +3,7 @@
 #include <gtk/gtk.h>
 #include <signal.h>
 
+
 #include "../src/version.h"
 #include "../src/view.h"
 
@@ -131,7 +132,13 @@ main(int argc, char ** argv)
     }
 
     gtk_main();
+
     cleanup();
+    //TODO: resolve bug int one of this function
+    //model_delete(model);
+    //controller_delete(controller);
+
+
 
     return EXIT_SUCCESS;
 }

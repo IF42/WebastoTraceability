@@ -1,75 +1,56 @@
 #include "login.h"
 
-#include <array.h>
 #include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <openssl/sha.h>
-#include <util.h>
+
 
 #define ACCOUNT_FILE "passwd"
 
 
 typedef struct
 {
-    char * username;
-    char * password;
+	size_t length;
+
+	struct User
+	{
+		char username[128];
+		char password[128];
+	}user[];
 }Login;
 
 
-typedef struct
-{
-    Array super;
-    Login array[];
-}Authentication;
-
-
-#define AUTHENTICATION(T)((Authentication*) T)
-
-
-static void
-authentication_delete(void * self)
-{
-    if(self == NULL) return;
-
-    for(size_t i = 0; i < AUTHENTICATION(self)->super.size; i++)
-    {
-        if(AUTHENTICATION(self)->array[i].username != NULL)
-            free(AUTHENTICATION(self)->array[i].username);
-
-        if(AUTHENTICATION(self)->array[i].password != NULL)
-            free(AUTHENTICATION(self)->array[i].password);
-    }
-
-    free(self);
-}
-
-
-Authentication * 
+Login *
 load_authentication(FILE * f)
 {
     char username[128];
     char password[128];
-    size_t length = 0;
-    Authentication * authentication = 
-        (Authentication*) array_new(sizeof(Login), 0, authentication_delete);
 
+    Login * login = NULL;
+    size_t length = 0;
 
     while(fscanf(f, "%[^:]:%[^\n]\n", username, password) > 0)
     {
-        authentication = 
-            (Authentication*) array_resize(
-                                ARRAY(authentication)
-                                , length+1);
-        
-        authentication->array[length].username = strdup(username);
-        authentication->array[length].password = strdup(password);
+        if(login == NULL)
+             login = malloc(sizeof(Login) + sizeof(struct User)*2);
+        else if(length >= login->length)
+            login = realloc(login, sizeof(Login) + sizeof(struct User)*length*2);
+
+        strncpy(login->user[length].username, username, 128);
+        strncpy(login->user[length].password, password, 128);
+
         length ++;
     }
 
-    return authentication;
+    login->length = length;
+
+    if(login != NULL)
+        login = realloc(login, sizeof(Login) + sizeof(struct User)*length);
+
+    return login;
 }
 
 
@@ -83,16 +64,16 @@ system_login(
     if(f == NULL) 
         return false;
 
-    Authentication * authentication = load_authentication(f);
+    Login * login = load_authentication(f);
 
     fclose(f);
 
-    if(authentication == NULL) 
+    if(login == NULL)
         return false;
     
-    for(size_t i = 0; i < authentication->super.size; i++)
+    for(size_t i = 0; i < login->length; i++)
     {
-        if(strcmp(username, authentication->array[i].username) == 0)
+        if(strcmp(username, login->user[i].username) == 0)
         {
             char digest[SHA256_DIGEST_LENGTH] = {0};
             char crypted_string[SHA256_DIGEST_LENGTH*2+1];
@@ -102,15 +83,15 @@ system_login(
             for(int i = 0; i < SHA256_DIGEST_LENGTH; i++)
                 sprintf(&crypted_string[i*2], "%02x", (unsigned int)digest[i]);    
 
-            if(strcmp(authentication->array[i].password, crypted_string) == 0)
+            if(strcmp(login->user[i].password, crypted_string) == 0)
             {
-                array_delete(ARRAY(authentication));
+                free(login);
                 return true;
             }
         }        
     }
     
-    array_delete(ARRAY(authentication));
+    free(login);
 
     return false;
 }

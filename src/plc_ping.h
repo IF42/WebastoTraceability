@@ -8,9 +8,7 @@
 
 
 PLC_Thread *
-plc_thread1_new(
-    Model * model
-    , S7Object client
-    , uint8_t db_index);
+plc_ping_new(
+	uint8_t db_index);
 
 #endif

@@ -2,10 +2,24 @@
 
 
 bool
-plc_thread_run(PLC_Thread * self)
+plc_thread_run(
+		PLC_Thread * self
+		, Model * model
+		, S7Object client)
 {
-    return self->callback(self);
+    return self->callback(self, model, client);
 }
+
+
+char *
+cli_error(int cli_result)
+{
+	static char error_buffer[128]= {0};
+
+	Cli_ErrorText(cli_result, error_buffer, sizeof(error_buffer));
+	return error_buffer;
+}
+
 
 
 void

@@ -3,14 +3,12 @@
 
 #include "plc_thread.h"
 
-#include <snap7.h>
 #include <stdint.h>
 
 
 PLC_Thread *
-plc2_thread3_new(
-    Model * model
-    , S7Object client);
+plc_env_log_new(
+    uint8_t db_index);
 
 
 #endif

@@ -1,12 +1,12 @@
 CC=gcc
-CFLAGS=-Wall -Wextra -pedantic -std=c2x -Ofast $$(pkg-config --cflags gtk+-3.0 sqlite3) -I/usr/include/ -Iutil
+CFLAGS=-Wall -Wextra -pedantic -Ofast $$(pkg-config --cflags gtk+-3.0 sqlite3) -I/usr/include/ -Iutil
 LIBS=$$(pkg-config --libs gtk+-3.0 sqlite3) -lcrypto -L. -lsnap7 -L/mingw64/lib -lpthread 
 
 UNAME := $(shell uname)
 
 ifeq ($(UNAME), Linux)
 else
-	CFLAGS+=-mwindows
+	CFLAGS+=-mwindows -D_WIN
 	LIBS+=-L/mingw64/lib
 endif
 
@@ -19,41 +19,18 @@ MODULES += main.o
 MODULES += view.o
 MODULES += ui.o
 MODULES += controller.o
-MODULES += plc_thread.o
-
-MODULES += plc_thread1.o
-MODULES += plc_thread2.o
-
-MODULES += plc1_thread3.o
-MODULES += plc1_thread4.o
-MODULES += plc1_thread5.o
-MODULES += plc1_thread6.o
-MODULES += plc1_thread7.o
-MODULES += plc1_thread8.o
-MODULES += plc1_thread9.o
-MODULES += plc1_thread10.o
-MODULES += plc1_thread11.o
-MODULES += plc1_thread12.o
-MODULES += plc1_thread13.o
-MODULES += plc1_thread14.o
-MODULES += plc1_thread15.o
-MODULES += plc1_thread16.o
-
-MODULES += plc2_thread3.o
-MODULES += plc2_thread4.o
-MODULES += plc2_thread5.o
-MODULES += plc2_thread6.o
-MODULES += plc2_thread7.o
-MODULES += plc2_thread8.o
-MODULES += plc2_thread9.o
-
 MODULES += model.o
 MODULES += login.o
+MODULES += plc_thread.o
+
+MODULES += plc_ping.o
+MODULES += plc_time_sync.o
+MODULES += plc_sql_read_write.o
+MODULES += plc_mes_csv.o
+MODULES += plc_env_log.o
 
 MODULES += endian.o
-MODULES += array.o
 MODULES += log.o
-MODULES += util.o
 
 TEST += test.o
 
