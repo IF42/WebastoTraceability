@@ -461,7 +461,7 @@ view_cyclic_interupt_callback(gpointer param)
 
         sprintf(
             str_timeout
-            , "%02ld:%02ld"
+            , "%02lld:%02lld"
             , self->model->logout_timer / 60, self->model->logout_timer % 60);
 
         gtk_progress_bar_set_text(

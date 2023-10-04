@@ -14,7 +14,7 @@
 #define CYCLE_TIME 500
 
 
-#define PLC1_IP_ADDRESS "192.168.1.1"
+#define PLC1_IP_ADDRESS "192.168.0.1"
 #define PLC1_RACK 0
 #define PLC1_SLOT 1   
 

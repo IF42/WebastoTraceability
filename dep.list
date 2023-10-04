@@ -6,9 +6,9 @@
 .cache/login.o: src/login.c src/login.h
 .cache/model.o: src/model.c src/model.h util/log.h src/version.h
 .cache/plc_env_log.o: src/plc_env_log.c src/plc_env_log.h src/plc_thread.h \
- src/model.h util/log.h util/snap7.h
+ src/model.h util/log.h util/snap7.h util/endian.h
 .cache/plc_mes_csv.o: src/plc_mes_csv.c src/plc_mes_csv.h src/plc_thread.h \
- src/model.h util/log.h util/snap7.h
+ src/model.h util/log.h util/snap7.h util/endian.h
 .cache/plc_ping.o: src/plc_ping.c src/plc_ping.h src/plc_thread.h src/model.h \
  util/log.h util/snap7.h
 .cache/plc_sql_read_write.o: src/plc_sql_read_write.c src/plc_sql_read_write.h \
@@ -16,7 +16,7 @@
 .cache/plc_thread.o: src/plc_thread.c src/plc_thread.h src/model.h util/log.h \
  util/snap7.h
 .cache/plc_time_sync.o: src/plc_time_sync.c src/plc_time_sync.h src/plc_thread.h \
- src/model.h util/log.h util/snap7.h
+ src/model.h util/log.h util/snap7.h util/endian.h
 .cache/ui.o: src/ui.c src/ui.h
 .cache/view.o: src/view.c src/view.h src/ui.h src/controller.h src/model.h \
  util/log.h src/login.h
