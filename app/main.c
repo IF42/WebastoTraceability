@@ -111,7 +111,7 @@ main(int argc, char ** argv)
     {
         cleanup();
 
-	    return EXIT_FAILURE;
+        return EXIT_FAILURE;
     }
     
     if((controller = controller_new(model)) == NULL)
