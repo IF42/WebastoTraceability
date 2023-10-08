@@ -4,7 +4,7 @@ After that there is several dependencies:
 * gcc
 * Gtk3
 * SQLite3
-* LibCrypto
+* OpenSSL
 
 For installation in msys2 platfor use following commands:
 ```
