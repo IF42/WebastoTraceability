@@ -5,6 +5,7 @@
 #include "plc_env_log.h"
 #include "plc_mes_csv.h"
 
+#include <string.h>
 #include <sys/time.h>
 #include <stdlib.h>
 #include <snap7.h>
@@ -19,7 +20,7 @@
 #define PLC1_SLOT 1   
 
 
-#define PLC2_IP_ADDRESS "192.168.0.20"
+#define PLC2_IP_ADDRESS "192.168.1.1"//"192.168.0.20"
 #define PLC2_RACK 0
 #define PLC2_SLOT 1   
 
@@ -94,12 +95,13 @@ controller_run_process(
 	case CONNECTED:
 		for(uint8_t i = 0; i < process->thread_pool_size; i++)
 		{
-			if(plc_thread_run(process->thread_pool[i], model, process->client) == false)
-			{
-				process->status = RECONNECT;
-				log_error(model->log, "%s:%d: %s thread id: %d connection error", __FILE__, __LINE__, process_name, i+1);
-				break;
-			}
+            if(plc_thread_run(process->thread_pool[i], model, process->client) == false)
+            {
+                process->status = RECONNECT;
+                log_error(model->log, "%s:%d: %s thread id: %d connection error", __FILE__, __LINE__, process_name, i+1);
+                break;
+            }
+
 		 }
 		 break;
 	case DISCONNECTED:
@@ -230,7 +232,7 @@ controller_new(Model * model)
         instance.plc2.thread_pool[0] = plc_ping_new(PLC2_PING_DB_INDEX);
         instance.plc2.thread_pool[1] = plc_time_sync_new(PLC2_TIME_SYNC_DB_INDEX);
         instance.plc2.thread_pool[2] = plc_db_read_write_new(PLC2_SQL_READ_WRITE_DB_INDEX);
-        instance.plc1.thread_pool[3] = plc_mes_csv_new(PLC2_WRITE_CSV_DB_INDEX);
+        instance.plc2.thread_pool[3] = plc_mes_csv_new(PLC2_WRITE_CSV_DB_INDEX);
         instance.plc2.thread_pool[4] = plc_env_log_new(PLC2_ENV_LOG_DB_INDEX);
 
         pthread_create(

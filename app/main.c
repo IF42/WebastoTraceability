@@ -134,11 +134,8 @@ main(int argc, char ** argv)
     gtk_main();
 
     cleanup();
-    //TODO: resolve bug int one of this function
-    //model_delete(model);
-    //controller_delete(controller);
-
-
+    model_delete(model);
+    controller_delete(controller);
 
     return EXIT_SUCCESS;
 }

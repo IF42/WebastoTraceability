@@ -104,6 +104,8 @@ __wait(
 		throw_error;
 	}
 
+
+
 	/*
 	** if the EXECUTE status is false
 	*/
