@@ -1,3 +1,6 @@
+# 1.1.1 
+Fixed bug in PLC2 Thread causing NULL function pointer call
+
 # 1.1.0
 * Adding version into log init message for identifying of running version of traceability
 * Adding cleaning command into command line interface for lock file deleting
