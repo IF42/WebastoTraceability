@@ -2,6 +2,8 @@
 Best way how to build WebastoTraceability on MS Windows platform is to install [Msys2](https://www.msys2.org/) environment. 
 After that there is several dependencies:
 * gcc
+* make
+* pkg-config
 * Gtk3
 * SQLite3
 * OpenSSL
@@ -9,10 +11,8 @@ After that there is several dependencies:
 For installation in msys2 platfor use following commands:
 ```
 # pacman -Syu
-# pacman -S mingw-w64-x86_64-toolchain base-devel
+# pacman -S mingw-w64-x86_64-toolchain base-devel pkg-config make
 # pacman -S mingw-w64-x86_64-gtk3
-# pacman -S make
-# pacman -S pkg-config 
 # pacman -S openssl openssl-devel
 # pacman -S mingw-w64-x86_64-sqlite3
 ```
