@@ -17,7 +17,7 @@ For installation in msys2 platfor use following commands:
 # pacman -S mingw-w64-x86_64-sqlite3
 ```
 
-After instalation of dependencies, is nececery to set Windows Environment Variable 'PATH' to C:\msys64\usr\bin and C:\msys64\mingw64\bin. This is nececery for MS system to see Msys2 environment tools. Next step is to set MS envirionemnt Variable 'PKG_CONFIG_PATH' for pkg_config where to search .pc files with build configurations for given library.
+After instalation of dependencies, is nececery to set Windows Environment Variable 'PATH' to C:\msys64\usr\bin and C:\msys64\mingw64\bin. This is nececery for MS system to see Msys2 environment tools. Next step is to set MS envirionemnt Variable 'PKG_CONFIG_PATH' to C:\msys64\mingw64\lib\pkgconfig and C:\msys64\usr\lib\pkgconfig. This is nececery for pkg_config where to search .pc files with build configurations for given library.
 After this step is possible to build source code by running command:
 
 ```
