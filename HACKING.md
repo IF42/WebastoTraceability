@@ -47,7 +47,7 @@ and run it by running command:
 # make exec
 ```
 
-User interface is defined in file ui/ui.glade and is possible to modified it in [glade](https://github.com/GNOME/glade) UI designer. Glade is possible to install via msys usin command:
+User interface is defined in file ui/ui.glade and is possible to modified it in [glade](https://github.com/GNOME/glade) UI designer. Glade is possible to install via msys2 using command:
 ```
 # pacman -S mingw-w64-x86_64-glade
 ```
