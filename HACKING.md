@@ -47,5 +47,10 @@ and run it by running command:
 # make exec
 ```
 
+User interface is defined in file ui/ui.glade and is possible to modified it in [glade](https://github.com/GNOME/glade) UI designer. Glade is possible to install via msys usin command:
+```
+# pacman -S mingw-w64-x86_64-glade
+```
+
 It is also possible to open project in IDE for example [Eclipse CDT](https://projects.eclipse.org/projects/tools.cdt)
 
